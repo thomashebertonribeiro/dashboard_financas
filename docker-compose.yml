@@ -1,0 +1,6 @@
+services:
+  dashboard-financas:
+    build: .
+    ports:
+      - "3005:80"
+    restart: unless-stopped
