@@ -18,6 +18,7 @@ import {
     gerarInsights,
     type FinanceData,
     type LancamentoRow,
+} from '../lib/sheetsParser'
 import { fetchTransactions, importTransactions } from '../lib/api'
 import { PeriodFilter, buildPeriod, type Period } from './PeriodFilter'
 import { AddTransactionModal } from './AddTransactionModal'
