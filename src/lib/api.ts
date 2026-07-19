@@ -61,7 +61,13 @@ export async function importTransactions(transactions: Transaction[]): Promise<v
     })
     
     if (!res.ok) {
-        const json = await res.json()
-        throw new Error(json.error || 'Falha ao importar transações')
+        let errorMsg = 'Falha ao importar transações'
+        try {
+            const json = await res.json()
+            if (json.error) errorMsg = json.error
+        } catch {
+            errorMsg = `Erro no servidor: ${res.status} ${res.statusText}`
+        }
+        throw new Error(errorMsg)
     }
 }
