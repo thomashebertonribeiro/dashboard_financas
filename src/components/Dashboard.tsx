@@ -19,6 +19,7 @@ import {
     type FinanceData,
     type LancamentoRow,
 } from '../lib/sheetsParser'
+import { fetchTransactions, importTransactions } from '../lib/api'
 import { PeriodFilter, buildPeriod, type Period } from './PeriodFilter'
 
 const COLORS = ['#00d4aa', '#60a5fa', '#fbbf24', '#ff4d6d', '#a78bfa', '#34d399', '#fb923c', '#f472b6']
@@ -138,7 +139,7 @@ function isRowInPeriod(row: LancamentoRow, from: Date, to: Date): boolean {
 
 const initialPeriod = buildPeriod('mes')
 
-export function Dashboard({ sheetUrl, onDisconnect }: Props) {
+export function Dashboard() {
     const [data, setData] = useState<FinanceData | null>(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState('')
@@ -149,15 +150,51 @@ export function Dashboard({ sheetUrl, onDisconnect }: Props) {
         setLoading(true)
         setError('')
         try {
-            const d = await fetchSheetData(sheetUrl)
-            setData(d)
+            const rows = await fetchTransactions()
+            setData({ rows, lastUpdated: new Date() })
             setLastRefresh(new Date())
         } catch (e: any) {
             setError(e.message || 'Erro ao carregar dados')
         } finally {
             setLoading(false)
         }
-    }, [sheetUrl])
+    }, [])
+
+    const handleImport = async () => {
+        const url = prompt("Cole a URL da sua planilha pública para importar os dados:")
+        if (!url) return
+        setLoading(true)
+        try {
+            const d = await fetchSheetData(url)
+            // Transform rows back to expected API input format
+            const payload = d.rows.map(r => {
+                const [dDay, dMonth, dYear] = r.data.split('/')
+                const date = `${dYear}-${dMonth}-${dDay}`
+                let due = null
+                if (r.vctoFatura) {
+                    const [vDay, vMonth, vYear] = r.vctoFatura.split('/')
+                    due = `${vYear}-${vMonth}-${vDay}`
+                }
+                return {
+                    date,
+                    type: r.transacao,
+                    payment_method: r.tipoPagamento,
+                    category: r.categoria,
+                    description: r.descricao,
+                    amount: r.valor,
+                    bank: r.banco,
+                    invoice_due_date: due
+                }
+            })
+            await importTransactions(payload)
+            alert("Dados importados com sucesso!")
+            load()
+        } catch (e: any) {
+            alert("Erro ao importar: " + e.message)
+        } finally {
+            setLoading(false)
+        }
+    }
 
     useEffect(() => { load() }, [load])
     useEffect(() => {
@@ -221,41 +258,44 @@ export function Dashboard({ sheetUrl, onDisconnect }: Props) {
 
     return (
         <div className="min-h-screen bg-[#0a0f1e]">
-            {/* Topbar */}
-            <header className="border-b border-[#1e2d45] bg-[#111827]/80 backdrop-blur-sm sticky top-0 z-10">
-                <div className="max-w-7xl mx-auto px-4 md:px-6 h-14 flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-2 h-2 bg-[#00d4aa] rounded-full animate-pulse-dot shrink-0" />
-                        <span className="font-semibold text-white text-sm whitespace-nowrap">Finanças Pessoais</span>
-                        <span className="hidden sm:inline text-[10px] text-[#4b5a6e] bg-[#1e2d45] px-2 py-0.5 rounded-full font-mono whitespace-nowrap">
-                            {rows.length} lançamento{rows.length !== 1 ? 's' : ''}
+            {/* Navigation / User Controls */}
+            <nav className="border-b border-[#1e2d45] bg-[#0a0f1e]/80 backdrop-blur-md sticky top-0 z-50">
+                <div className="max-w-7xl mx-auto px-4 md:px-8 py-4 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#00d4aa] to-[#60a5fa] flex items-center justify-center shrink-0">
+                            <span className="text-bg font-bold text-lg leading-none">F</span>
+                        </div>
+                        <span className="text-white font-semibold tracking-wide hidden sm:block">
+                            Finanças <span className="text-[#00d4aa]">Pessoais</span>
                         </span>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                        {/* Filtro de período */}
-                        <PeriodFilter period={period} onChange={setPeriod} />
 
-                        <div className="hidden sm:flex items-center gap-1.5 text-xs text-[#4b5a6e]">
-                            <Clock className="w-3 h-3" />
-                            <span>{timeAgo(lastRefresh)}</span>
+                    <div className="flex items-center gap-4">
+                        <button
+                            onClick={handleImport}
+                            className="text-xs font-semibold px-4 py-2 bg-[#60a5fa]/10 text-[#60a5fa] hover:bg-[#60a5fa]/20 border border-[#60a5fa]/30 rounded-full transition-all"
+                        >
+                            Importar da Planilha
+                        </button>
+                        <div className="text-right hidden md:block">
+                            <p className="text-xs text-[#8899aa] uppercase tracking-wider font-semibold">
+                                Atualizado
+                            </p>
+                            <div className="flex items-center gap-1.5 justify-end">
+                                <Clock className="w-3.5 h-3.5 text-[#00d4aa]" />
+                                <span className="text-sm font-medium text-white">{timeAgo(lastRefresh)}</span>
+                            </div>
                         </div>
                         <button
                             onClick={load}
-                            disabled={loading}
-                            className="flex items-center gap-1.5 text-xs text-[#8899aa] hover:text-[#00d4aa] border border-[#1e2d45] hover:border-[#00d4aa]/40 px-3 py-1.5 rounded-lg transition-all"
+                            className="p-2 rounded-full hover:bg-[#1e2d45] text-[#8899aa] hover:text-white transition-colors"
+                            title="Atualizar dados"
                         >
-                            <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin-slow' : ''}`} />
-                            <span className="hidden md:inline">Atualizar</span>
-                        </button>
-                        <button
-                            onClick={onDisconnect}
-                            className="flex items-center gap-1.5 text-xs text-[#4b5a6e] hover:text-[#ff4d6d] border border-[#1e2d45] hover:border-[#ff4d6d]/40 px-3 py-1.5 rounded-lg transition-all"
-                        >
-                            <LogOut className="w-3 h-3" />
+                            <RefreshCw className="w-5 h-5" />
                         </button>
                     </div>
                 </div>
-            </header>
+            </nav>
 
             <main className="max-w-7xl mx-auto px-4 md:px-6 py-6 space-y-6">
 

@@ -8,8 +8,11 @@ const PORT = process.env.PORT || 3001
 app.use(cors({ origin: true, credentials: true }))
 app.use(express.json())
 
+import transactionsRoutes from "./routes/transactionsRoutes"
+
 // Routes
 app.use("/api/auth", authRoutes)
+app.use("/api/transactions", transactionsRoutes)
 
 // Health check
 app.get("/api/health", (_req, res) => {
