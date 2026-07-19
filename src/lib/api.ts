@@ -36,8 +36,17 @@ export async function fetchTransactions(): Promise<LancamentoRow[]> {
         
         let vctoFormatado = ''
         if (t.invoice_due_date) {
-            const [vYear, vMonth, vDay] = t.invoice_due_date.split('-')
-            vctoFormatado = `${vDay}/${vMonth}/${vYear}`
+            const parts = t.invoice_due_date.split('-')
+            if (parts.length === 3) {
+                const [vYear, vMonth, vDay] = parts
+                if (vDay && vMonth && vYear) {
+                    vctoFormatado = `${vDay}/${vMonth}/${vYear}`
+                } else {
+                    vctoFormatado = t.invoice_due_date
+                }
+            } else {
+                vctoFormatado = t.invoice_due_date
+            }
         }
 
         return {
@@ -51,6 +60,91 @@ export async function fetchTransactions(): Promise<LancamentoRow[]> {
             vctoFatura: vctoFormatado,
         }
     })
+}
+
+export interface Goal {
+    id?: string
+    user_id?: string
+    name: string
+    target_amount: number
+    current_amount?: number
+    deadline?: string | null
+    icon?: string
+    color?: string
+    created_at?: string
+}
+
+export interface Investment {
+    id?: string
+    user_id?: string
+    name: string
+    type: string
+    amount: number
+    quantity?: number | null
+    unit_price?: number | null
+    date?: string | null
+    notes?: string
+    created_at?: string
+}
+
+export async function fetchGoals(): Promise<Goal[]> {
+    const res = await fetch('/api/goals', { headers: getHeaders() })
+    if (!res.ok) throw new Error('Falha ao carregar metas')
+    const json = await res.json()
+    return json.data ?? []
+}
+
+export async function createGoal(goal: Partial<Goal>): Promise<Goal> {
+    const res = await fetch('/api/goals', {
+        method: 'POST', headers: getHeaders(), body: JSON.stringify(goal)
+    })
+    if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Erro ao criar meta') }
+    const json = await res.json()
+    return json.data
+}
+
+export async function updateGoal(id: string, goal: Partial<Goal>): Promise<Goal> {
+    const res = await fetch(`/api/goals/${id}`, {
+        method: 'PUT', headers: getHeaders(), body: JSON.stringify(goal)
+    })
+    if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Erro ao atualizar meta') }
+    const json = await res.json()
+    return json.data
+}
+
+export async function deleteGoal(id: string): Promise<void> {
+    const res = await fetch(`/api/goals/${id}`, { method: 'DELETE', headers: getHeaders() })
+    if (!res.ok) throw new Error('Erro ao excluir meta')
+}
+
+export async function fetchInvestments(): Promise<Investment[]> {
+    const res = await fetch('/api/investments', { headers: getHeaders() })
+    if (!res.ok) throw new Error('Falha ao carregar investimentos')
+    const json = await res.json()
+    return json.data ?? []
+}
+
+export async function createInvestment(inv: Partial<Investment>): Promise<Investment> {
+    const res = await fetch('/api/investments', {
+        method: 'POST', headers: getHeaders(), body: JSON.stringify(inv)
+    })
+    if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Erro ao criar investimento') }
+    const json = await res.json()
+    return json.data
+}
+
+export async function updateInvestment(id: string, inv: Partial<Investment>): Promise<Investment> {
+    const res = await fetch(`/api/investments/${id}`, {
+        method: 'PUT', headers: getHeaders(), body: JSON.stringify(inv)
+    })
+    if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Erro ao atualizar investimento') }
+    const json = await res.json()
+    return json.data
+}
+
+export async function deleteInvestment(id: string): Promise<void> {
+    const res = await fetch(`/api/investments/${id}`, { method: 'DELETE', headers: getHeaders() })
+    if (!res.ok) throw new Error('Erro ao excluir investimento')
 }
 
 export async function importTransactions(transactions: Transaction[]): Promise<void> {

@@ -7,6 +7,7 @@ export interface LancamentoRow {
     valor: number
     banco: string
     vctoFatura: string
+    vctoFaturaMes?: number
     semana?: number
     mes?: number
     ano?: number
@@ -139,6 +140,9 @@ function matrixToRows(matrix: string[][]): LancamentoRow[] {
         const rawData = cols[idx.data] ?? ''
         const dateInfo = parseDate(rawData)
 
+        const rawVcto = (cols[idx.vctoFatura] ?? '').trim()
+        const vctoMes = mesIndex(rawVcto)
+
         rows.push({
             data: rawData.trim(),
             transacao: normalizeTransacao(cols[idx.transacao] ?? ''),
@@ -147,7 +151,8 @@ function matrixToRows(matrix: string[][]): LancamentoRow[] {
             descricao: (cols[idx.descricao] ?? '').trim(),
             valor: Math.abs(valor),
             banco: normalizeBanco(cols[idx.banco] ?? ''),
-            vctoFatura: (cols[idx.vctoFatura] ?? '').trim(),
+            vctoFatura: rawVcto,
+            vctoFaturaMes: vctoMes >= 0 ? vctoMes : undefined,
             semana: dateInfo?.semana,
             mes: dateInfo?.mes,
             ano: dateInfo?.ano,
@@ -247,7 +252,7 @@ function normalizeMesNome(raw: string): string {
     return raw.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim()
 }
 
-function mesIndex(raw: string): number {
+export function mesIndex(raw: string): number {
     const n = normalizeMesNome(raw)
     // Tenta match exato ou prefixo de 3 letras
     for (let i = 0; i < MESES_PT.length; i++) {
@@ -255,6 +260,12 @@ function mesIndex(raw: string): number {
         if (n === m) return i
         if (n.startsWith(m.slice(0, 3))) return i
         if (m.startsWith(n.slice(0, 3))) return i
+    }
+    // Fallback: tenta extrair mês de datas formatadas (dd/mm/yyyy ou yyyy-mm-dd)
+    const parts = n.split(/[\/\-]/)
+    if (parts.length === 3) {
+        const mid = parseInt(parts[1], 10)
+        if (!isNaN(mid) && mid >= 1 && mid <= 12) return mid - 1
     }
     return -1
 }

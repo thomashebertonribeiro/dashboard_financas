@@ -16,12 +16,16 @@ import {
     faturaProximoMes,
     gastosPorCategoria,
     gerarInsights,
+    mesIndex,
     type FinanceData,
     type LancamentoRow,
 } from '../lib/sheetsParser'
-import { fetchTransactions, importTransactions } from '../lib/api'
+import { fetchTransactions, importTransactions, type Transaction } from '../lib/api'
 import { PeriodFilter, buildPeriod, type Period } from './PeriodFilter'
 import { AddTransactionModal } from './AddTransactionModal'
+import { BulkImportModal } from './BulkImportModal'
+import { GoalsSection } from './GoalsSection'
+import { InvestmentsSection } from './InvestmentsSection'
 
 const COLORS = ['#00d4aa', '#60a5fa', '#fbbf24', '#ff4d6d', '#a78bfa', '#34d399', '#fb923c', '#f472b6']
 
@@ -108,11 +112,6 @@ function EmptyState({ msg }: { msg?: string }) {
     )
 }
 
-interface Props {
-    sheetUrl: string
-    onDisconnect: () => void
-}
-
 function parseRowDate(raw: string): Date | null {
     if (!raw) return null
     // Remove caracteres invisíveis e espaços
@@ -147,6 +146,7 @@ export function Dashboard() {
     const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
     const [period, setPeriod] = useState<Period>(initialPeriod)
     const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+    const [isBulkImportOpen, setIsBulkImportOpen] = useState(false)
 
     const load = useCallback(async () => {
         setLoading(true)
@@ -162,23 +162,48 @@ export function Dashboard() {
         }
     }, [])
 
+    function validDateStr(raw: string): string | null {
+        const parts = raw.split(/[\/\-]/)
+        if (parts.length !== 3) return null
+        const [a, b, c] = parts.map(p => parseInt(p, 10))
+        if (isNaN(a) || isNaN(b) || isNaN(c)) return null
+        // dd/mm/yyyy or yyyy/mm/dd
+        const yyyy = c > 31 ? c : a
+        const mm = c > 31 ? b : (a > 31 ? c : b)
+        const dd = c > 31 ? a : (a > 31 ? b : c)
+        if (yyyy < 1900 || yyyy > 2100 || mm < 1 || mm > 12 || dd < 1 || dd > 31) return null
+        return `${yyyy}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`
+    }
+
     const handleImport = async () => {
         const url = prompt("Cole a URL da sua planilha pública para importar os dados:")
         if (!url) return
         setLoading(true)
         try {
             const d = await fetchSheetData(url)
-            // Transform rows back to expected API input format
             const payload = d.rows.map(r => {
-                const [dDay, dMonth, dYear] = r.data.split('/')
-                const date = `${dYear}-${dMonth}-${dDay}`
-                let due = null
-                if (r.vctoFatura) {
-                    const [vDay, vMonth, vYear] = r.vctoFatura.split('/')
-                    due = `${vYear}-${vMonth}-${vDay}`
+                const parsedDate = validDateStr(r.data)
+                const dateStr: string = parsedDate ?? new Date().toISOString().split('T')[0]
+                if (!parsedDate) {
+                    console.warn(`Data não reconhecida na linha "${r.descricao}": "${r.data}" — usando data atual`)
                 }
+
+                let due: string | null = null
+                if (r.vctoFatura) {
+                    due = validDateStr(r.vctoFatura)
+                    if (!due) {
+                        const mes = r.vctoFaturaMes ?? mesIndex(r.vctoFatura)
+                        if (mes >= 0) {
+                            const ano = new Date().getFullYear()
+                            due = `${ano}-${String(mes + 1).padStart(2, '0')}-01`
+                        } else if (r.vctoFatura.trim()) {
+                            console.warn(`Vcto fatura não reconhecido na linha "${r.descricao}": "${r.vctoFatura}"`)
+                        }
+                    }
+                }
+                
                 return {
-                    date,
+                    date: dateStr,
                     type: r.transacao,
                     payment_method: r.tipoPagamento,
                     category: r.categoria,
@@ -187,7 +212,7 @@ export function Dashboard() {
                     bank: r.banco,
                     invoice_due_date: due
                 }
-            })
+            }).filter(Boolean) as Transaction[]
             await importTransactions(payload)
             alert("Dados importados com sucesso!")
             load()
@@ -233,9 +258,6 @@ export function Dashboard() {
                         <button onClick={load} className="flex items-center gap-2 bg-[#00d4aa] text-[#0a0f1e] font-semibold px-5 py-2 rounded-xl hover:bg-[#00d4aa]/90 transition-all text-sm">
                             <RefreshCw className="w-3.5 h-3.5" /> Tentar novamente
                         </button>
-                        <button onClick={onDisconnect} className="text-[#8899aa] text-sm border border-[#1e2d45] px-5 py-2 rounded-xl hover:border-[#ff4d6d]/40 hover:text-[#ff4d6d] transition-all">
-                            Trocar planilha
-                        </button>
                     </div>
                 </div>
             </div>
@@ -272,12 +294,19 @@ export function Dashboard() {
                         </span>
                     </div>
 
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-3">
+                        <PeriodFilter period={period} onChange={setPeriod} />
                         <button
                             onClick={() => setIsAddModalOpen(true)}
                             className="text-xs font-semibold px-4 py-2 bg-gradient-to-r from-[#00d4aa] to-[#60a5fa] text-bg hover:opacity-90 rounded-full transition-all shadow-lg"
                         >
                             + Novo Lançamento
+                        </button>
+                        <button
+                            onClick={() => setIsBulkImportOpen(true)}
+                            className="text-xs font-semibold px-4 py-2 bg-[#00d4aa]/10 text-[#00d4aa] hover:bg-[#00d4aa]/20 border border-[#00d4aa]/30 rounded-full transition-all"
+                        >
+                            + Importar em Massa
                         </button>
                         <button
                             onClick={handleImport}
@@ -518,11 +547,22 @@ export function Dashboard() {
                     ) : <EmptyState msg="Nenhum lançamento encontrado" />}
                 </div>
 
+                {/* ── Metas ── */}
+                <GoalsSection />
+
+                {/* ── Investimentos ── */}
+                <InvestmentsSection />
+
             </main>
             
             <AddTransactionModal 
                 isOpen={isAddModalOpen} 
                 onClose={() => setIsAddModalOpen(false)} 
+                onSuccess={load}
+            />
+            <BulkImportModal 
+                isOpen={isBulkImportOpen} 
+                onClose={() => setIsBulkImportOpen(false)} 
                 onSuccess={load}
             />
         </div>
