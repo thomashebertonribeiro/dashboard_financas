@@ -147,6 +147,64 @@ export async function deleteInvestment(id: string): Promise<void> {
     if (!res.ok) throw new Error('Erro ao excluir investimento')
 }
 
+export interface OcrDocument {
+    id?: string
+    user_id?: string
+    transaction_id?: string | null
+    file_name: string
+    file_path: string
+    file_size?: number | null
+    mime_type?: string | null
+    created_at?: string
+    ocr?: OcrResult | null
+}
+
+export interface OcrResult {
+    id?: string
+    document_id?: string
+    raw_text?: string | null
+    parsed_data?: Record<string, unknown> | null
+    confidence?: number | null
+    status: 'pending' | 'processing' | 'completed' | 'failed'
+    error_message?: string | null
+    processing_time_ms?: number | null
+    created_at?: string
+}
+
+export async function uploadDocument(file: File): Promise<OcrDocument> {
+    const token = localStorage.getItem('auth_token')
+    const formData = new FormData()
+    formData.append('file', file)
+
+    const res = await fetch('/api/ocr/upload', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData,
+    })
+    if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Erro ao fazer upload') }
+    const json = await res.json()
+    return json.data.document
+}
+
+export async function fetchOcrDocuments(): Promise<OcrDocument[]> {
+    const res = await fetch('/api/ocr/documents', { headers: getHeaders() })
+    if (!res.ok) throw new Error('Falha ao carregar documentos')
+    const json = await res.json()
+    return json.data ?? []
+}
+
+export async function getOcrDocument(id: string): Promise<OcrDocument> {
+    const res = await fetch(`/api/ocr/documents/${id}`, { headers: getHeaders() })
+    if (!res.ok) throw new Error('Falha ao carregar documento')
+    const json = await res.json()
+    return json.data
+}
+
+export async function deleteOcrDocument(id: string): Promise<void> {
+    const res = await fetch(`/api/ocr/documents/${id}`, { method: 'DELETE', headers: getHeaders() })
+    if (!res.ok) throw new Error('Erro ao excluir documento')
+}
+
 export async function importTransactions(transactions: Transaction[]): Promise<void> {
     const res = await fetch('/api/transactions', {
         method: 'POST',
