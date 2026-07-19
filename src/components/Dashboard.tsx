@@ -18,9 +18,9 @@ import {
     gerarInsights,
     type FinanceData,
     type LancamentoRow,
-} from '../lib/sheetsParser'
 import { fetchTransactions, importTransactions } from '../lib/api'
 import { PeriodFilter, buildPeriod, type Period } from './PeriodFilter'
+import { AddTransactionModal } from './AddTransactionModal'
 
 const COLORS = ['#00d4aa', '#60a5fa', '#fbbf24', '#ff4d6d', '#a78bfa', '#34d399', '#fb923c', '#f472b6']
 
@@ -145,6 +145,7 @@ export function Dashboard() {
     const [error, setError] = useState('')
     const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
     const [period, setPeriod] = useState<Period>(initialPeriod)
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false)
 
     const load = useCallback(async () => {
         setLoading(true)
@@ -271,6 +272,12 @@ export function Dashboard() {
                     </div>
 
                     <div className="flex items-center gap-4">
+                        <button
+                            onClick={() => setIsAddModalOpen(true)}
+                            className="text-xs font-semibold px-4 py-2 bg-gradient-to-r from-[#00d4aa] to-[#60a5fa] text-bg hover:opacity-90 rounded-full transition-all shadow-lg"
+                        >
+                            + Novo Lançamento
+                        </button>
                         <button
                             onClick={handleImport}
                             className="text-xs font-semibold px-4 py-2 bg-[#60a5fa]/10 text-[#60a5fa] hover:bg-[#60a5fa]/20 border border-[#60a5fa]/30 rounded-full transition-all"
@@ -511,6 +518,12 @@ export function Dashboard() {
                 </div>
 
             </main>
+            
+            <AddTransactionModal 
+                isOpen={isAddModalOpen} 
+                onClose={() => setIsAddModalOpen(false)} 
+                onSuccess={load}
+            />
         </div>
     )
 }
