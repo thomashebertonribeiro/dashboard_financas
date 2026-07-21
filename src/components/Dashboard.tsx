@@ -214,8 +214,9 @@ export function Dashboard() {
                     invoice_due_date: due
                 }
             }).filter(Boolean) as Transaction[]
-            await importTransactions(payload)
-            alert("Dados importados com sucesso!")
+            const result = await importTransactions(payload)
+            const msg = `Importados: ${result.imported}${result.skipped > 0 ? `, ${result.skipped} já existentes (pulados)` : ''}`
+            alert(msg)
             load()
         } catch (e: any) {
             alert("Erro ao importar: " + e.message)

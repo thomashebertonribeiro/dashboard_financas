@@ -205,7 +205,7 @@ export async function deleteOcrDocument(id: string): Promise<void> {
     if (!res.ok) throw new Error('Erro ao excluir documento')
 }
 
-export async function importTransactions(transactions: Transaction[]): Promise<void> {
+export async function importTransactions(transactions: Transaction[]): Promise<{ imported: number; skipped: number }> {
     const res = await fetch('/api/transactions', {
         method: 'POST',
         headers: getHeaders(),
@@ -221,5 +221,12 @@ export async function importTransactions(transactions: Transaction[]): Promise<v
             errorMsg = `Erro no servidor: ${res.status} ${res.statusText}`
         }
         throw new Error(errorMsg)
+    }
+
+    const json = await res.json()
+    const data = json.data ?? []
+    return {
+        imported: data.length,
+        skipped: transactions.length - data.length,
     }
 }
