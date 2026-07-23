@@ -1,5 +1,18 @@
 import { LancamentoRow } from './sheetsParser'
 
+export interface CreditCard {
+    id?: string
+    user_id?: string
+    name: string
+    brand?: string
+    closing_day: number
+    due_day: number
+    limit_amount?: number
+    color?: string
+    created_at?: string
+    updated_at?: string
+}
+
 export interface Transaction {
     id?: string
     user_id?: string
@@ -203,6 +216,36 @@ export async function getOcrDocument(id: string): Promise<OcrDocument> {
 export async function deleteOcrDocument(id: string): Promise<void> {
     const res = await fetch(`/api/ocr/documents/${id}`, { method: 'DELETE', headers: getHeaders() })
     if (!res.ok) throw new Error('Erro ao excluir documento')
+}
+
+export async function fetchCreditCards(): Promise<CreditCard[]> {
+    const res = await fetch('/api/credit-cards', { headers: getHeaders() })
+    if (!res.ok) throw new Error('Falha ao carregar cartões')
+    const json = await res.json()
+    return json.data ?? []
+}
+
+export async function createCreditCard(card: Partial<CreditCard>): Promise<CreditCard> {
+    const res = await fetch('/api/credit-cards', {
+        method: 'POST', headers: getHeaders(), body: JSON.stringify(card)
+    })
+    if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Erro ao criar cartão') }
+    const json = await res.json()
+    return json.data
+}
+
+export async function updateCreditCard(id: string, card: Partial<CreditCard>): Promise<CreditCard> {
+    const res = await fetch(`/api/credit-cards/${id}`, {
+        method: 'PUT', headers: getHeaders(), body: JSON.stringify(card)
+    })
+    if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Erro ao atualizar cartão') }
+    const json = await res.json()
+    return json.data
+}
+
+export async function deleteCreditCard(id: string): Promise<void> {
+    const res = await fetch(`/api/credit-cards/${id}`, { method: 'DELETE', headers: getHeaders() })
+    if (!res.ok) throw new Error('Erro ao excluir cartão')
 }
 
 export async function importTransactions(transactions: Transaction[]): Promise<{ imported: number; skipped: number }> {
