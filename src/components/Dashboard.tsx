@@ -34,7 +34,7 @@ import { PieTooltip } from './PieTooltip'
 import { fmt, timeAgo, toISODate, parseDateStr } from '../lib/dateUtils'
 import { useToast } from '../context/ToastContext'
 
-const CHART_COLORS = ['var(--color-accent)', 'var(--color-info)', 'var(--color-warning)', 'var(--color-danger)', '#a78bfa', '#34d399', '#fb923c', '#f472b6', '#22d3ee', '#8b5cf6', '#f43f5e', '#14b8a6']
+const CHART_COLORS = ['#00d4aa', '#60a5fa', '#fbbf24', '#ff4d6d', '#a78bfa', '#34d399', '#fb923c', '#f472b6', '#22d3ee', '#8b5cf6', '#f43f5e', '#14b8a6']
 
 function SectionTitle({ icon, title }: { icon: ReactNode; title: string }) {
     return (
@@ -307,11 +307,11 @@ export function Dashboard() {
                         {semanas.length > 0 ? (
                             <ResponsiveContainer width="100%" height={200}>
                                 <BarChart data={semanas} margin={{ top: 4, right: 4, left: 0, bottom: 0 }} barSize={32}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-                                    <XAxis dataKey="semana" tick={{ fill: 'var(--color-muted)', fontSize: 11 }} axisLine={false} tickLine={false} />
-                                    <YAxis tick={{ fill: 'var(--color-muted)', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `${(v / 1000).toFixed(0)}k`} />
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#1e2d45" vertical={false} />
+                                    <XAxis dataKey="semana" tick={{ fill: '#4b5a6e', fontSize: 11 }} axisLine={false} tickLine={false} />
+                                    <YAxis tick={{ fill: '#4b5a6e', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `${(v / 1000).toFixed(0)}k`} />
                                     <Tooltip content={<CustomTooltip />} />
-                                    <Bar dataKey="total" fill="var(--color-danger)" name="Saídas" radius={[6, 6, 0, 0]} />
+                                    <Bar dataKey="total" fill="#ff4d6d" name="Saídas" radius={[6, 6, 0, 0]} />
                                 </BarChart>
                             </ResponsiveContainer>
                         ) : <EmptyState msg="Sem saídas com data registrada" />}
@@ -322,9 +322,9 @@ export function Dashboard() {
                         {porCartao.length > 0 ? (
                             <ResponsiveContainer width="100%" height={200}>
                                 <BarChart data={porCartao} layout="vertical" margin={{ top: 4, right: 4, left: 0, bottom: 0 }} barSize={20}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" horizontal={false} />
-                                    <XAxis type="number" tick={{ fill: 'var(--color-muted)', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `${(v / 1000).toFixed(0)}k`} />
-                                    <YAxis type="category" dataKey="banco" tick={{ fill: 'var(--color-subtle)', fontSize: 11 }} axisLine={false} tickLine={false} width={90} />
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#1e2d45" horizontal={false} />
+                                    <XAxis type="number" tick={{ fill: '#4b5a6e', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `${(v / 1000).toFixed(0)}k`} />
+                                    <YAxis type="category" dataKey="banco" tick={{ fill: '#8899aa', fontSize: 11 }} axisLine={false} tickLine={false} width={90} />
                                     <Tooltip content={<CustomTooltip />} />
                                     <Bar dataKey="total" name="Gastos" radius={[0, 6, 6, 0]}>
                                         {porCartao.map((_, i) => (
