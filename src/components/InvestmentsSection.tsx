@@ -5,6 +5,8 @@ import {
 } from '../lib/api'
 import { TrendingUp, Plus, Pencil, Trash2, X, PieChart } from 'lucide-react'
 import { ResponsiveContainer, PieChart as RPieChart, Pie, Cell, Tooltip } from 'recharts'
+import { useToast } from '../context/ToastContext'
+import { PieTooltip } from './PieTooltip'
 
 function fmt(v: number) {
     return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
@@ -34,41 +36,30 @@ const TYPE_COLORS: Record<string, string> = {
 
 function InvestmentRow({ inv, onEdit, onDelete }: { inv: Investment; onEdit: (i: Investment) => void; onDelete: (id: string) => void }) {
     return (
-        <div className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-[#0d1525] border border-[#1e2d45] hover:border-[#2a3a52] transition-all">
+        <div className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-surface border border-border hover:border-[#2a3a52] transition-all">
             <div className="flex items-center gap-3 min-w-0">
                 <div className="w-2 h-2 rounded-full shrink-0" style={{ background: TYPE_COLORS[inv.type] || '#4b5a6e' }} />
                 <div className="min-w-0">
                     <p className="text-white text-sm font-medium truncate">{inv.name}</p>
-                    <p className="text-[#4b5a6e] text-[10px]">{TYPE_LABELS[inv.type] || inv.type}</p>
+                    <p className="text-muted text-[10px]">{TYPE_LABELS[inv.type] || inv.type}</p>
                 </div>
             </div>
             <div className="flex items-center gap-3 shrink-0">
                 <div className="text-right">
                     <p className="text-white text-sm font-mono font-semibold">{fmt(Number(inv.amount))}</p>
                     {inv.quantity && inv.unit_price && (
-                        <p className="text-[#4b5a6e] text-[10px]">{inv.quantity} × {fmt(Number(inv.unit_price))}</p>
+                        <p className="text-muted text-[10px]">{inv.quantity} × {fmt(Number(inv.unit_price))}</p>
                     )}
                 </div>
                 <div className="flex gap-1">
-                    <button onClick={() => onEdit(inv)} className="p-1.5 rounded-lg hover:bg-[#1e2d45] text-[#4b5a6e] hover:text-[#60a5fa] transition-all">
+                    <button onClick={() => onEdit(inv)} className="p-1.5 rounded-lg hover:bg-border text-muted hover:text-info transition-all">
                         <Pencil className="w-3 h-3" />
                     </button>
-                    <button onClick={() => onDelete(inv.id!)} className="p-1.5 rounded-lg hover:bg-[#1e2d45] text-[#4b5a6e] hover:text-[#ff4d6d] transition-all">
+                    <button onClick={() => onDelete(inv.id!)} className="p-1.5 rounded-lg hover:bg-border text-muted hover:text-danger transition-all">
                         <Trash2 className="w-3 h-3" />
                     </button>
                 </div>
             </div>
-        </div>
-    )
-}
-
-const PieTooltip = ({ active, payload }: any) => {
-    if (!active || !payload?.length) return null
-    const item = payload[0]
-    return (
-        <div className="bg-[#1a2535] border border-[#1e2d45] rounded-xl p-3 text-xs shadow-xl">
-            <p className="text-white font-medium mb-1">{item.name}</p>
-            <p className="text-[#00d4aa] font-mono">{fmt(item.value)}</p>
         </div>
     )
 }
@@ -78,6 +69,7 @@ export function InvestmentsSection() {
     const [loading, setLoading] = useState(true)
     const [showModal, setShowModal] = useState(false)
     const [editing, setEditing] = useState<Investment | null>(null)
+    const { addToast } = useToast()
 
     const load = async () => {
         try {
@@ -101,10 +93,9 @@ export function InvestmentsSection() {
     }
 
     const handleDelete = async (id: string) => {
-        if (confirm('Excluir este investimento?')) {
-            await deleteInvestment(id)
-            load()
-        }
+        await deleteInvestment(id)
+        load()
+        addToast('warning', 'Investimento excluído')
     }
 
     const totalInvestido = investments.reduce((s, i) => s + Number(i.amount), 0)
@@ -120,16 +111,16 @@ export function InvestmentsSection() {
     }))
 
     return (
-        <div className="bg-[#0d1525] border border-[#1e2d45] rounded-2xl p-5">
+        <div className="bg-surface border border-border rounded-2xl p-5">
             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                    <TrendingUp className="w-4 h-4 text-[#00d4aa]" />
+                    <TrendingUp className="w-4 h-4 text-accent" />
                     <h2 className="text-sm font-semibold text-white">Investimentos</h2>
-                    <span className="text-xs text-[#4b5a6e] font-mono">Total: {fmt(totalInvestido)}</span>
+                    <span className="text-xs text-muted font-mono">Total: {fmt(totalInvestido)}</span>
                 </div>
                 <button
                     onClick={() => { setEditing(null); setShowModal(true) }}
-                    className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 bg-[#00d4aa]/10 text-[#00d4aa] hover:bg-[#00d4aa]/20 border border-[#00d4aa]/30 rounded-full transition-all"
+                    className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 bg-accent-dim text-accent hover:bg-accent/20 border border-accent/30 rounded-full transition-all"
                 >
                     <Plus className="w-3 h-3" /> Novo Investimento
                 </button>
@@ -137,10 +128,10 @@ export function InvestmentsSection() {
 
             {loading ? (
                 <div className="flex items-center justify-center h-24">
-                    <div className="w-6 h-6 border-2 border-[#00d4aa]/20 border-t-[#00d4aa] rounded-full animate-spin-slow" />
+                    <div className="w-6 h-6 border-2 border-accent/20 border-t-accent rounded-full animate-spin-slow" />
                 </div>
             ) : investments.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-24 text-[#4b5a6e]">
+                <div className="flex flex-col items-center justify-center h-24 text-muted">
                     <TrendingUp className="w-6 h-6 mb-2 opacity-50" />
                     <p className="text-xs">Nenhum investimento registrado</p>
                 </div>
@@ -154,10 +145,10 @@ export function InvestmentsSection() {
                     </div>
 
                     {/* Gráfico por tipo */}
-                    <div className="bg-[#151e2d] border border-[#1e2d45] rounded-xl p-4">
+                    <div className="bg-card border border-border rounded-xl p-4">
                         <div className="flex items-center gap-2 mb-3">
-                            <PieChart className="w-4 h-4 text-[#00d4aa]" />
-                            <span className="text-xs text-[#8899aa] font-medium">Por Tipo</span>
+                            <PieChart className="w-4 h-4 text-accent" />
+                            <span className="text-xs text-subtle font-medium">Por Tipo</span>
                         </div>
                         {pieData.length > 0 ? (
                             <>
@@ -179,7 +170,7 @@ export function InvestmentsSection() {
                                             <div key={i} className="flex items-center justify-between text-xs">
                                                 <div className="flex items-center gap-2">
                                                     <div className="w-2 h-2 rounded-full" style={{ background: TYPE_COLORS[type] || '#4b5a6e' }} />
-                                                    <span className="text-[#8899aa]">{item.name}</span>
+                                                    <span className="text-subtle">{item.name}</span>
                                                 </div>
                                                 <span className="text-white font-mono">{fmt(item.value)}</span>
                                             </div>
@@ -188,7 +179,7 @@ export function InvestmentsSection() {
                                 </div>
                             </>
                         ) : (
-                            <div className="flex items-center justify-center h-40 text-[#4b5a6e] text-xs">Sem dados</div>
+                            <div className="flex items-center justify-center h-40 text-muted text-xs">Sem dados</div>
                         )}
                     </div>
                 </div>
@@ -230,57 +221,57 @@ function InvestmentModal({ investment, onSave, onClose }: { investment: Investme
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
-            <div className="bg-[#151e2d] border border-[#1e2d45] rounded-2xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
+            <div className="bg-card border border-border rounded-2xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
                 <div className="flex items-center justify-between mb-4">
                     <h3 className="text-white font-semibold">{investment ? 'Editar Investimento' : 'Novo Investimento'}</h3>
-                    <button onClick={onClose} className="p-1 rounded-lg hover:bg-[#1e2d45] text-[#4b5a6e]">
+                    <button onClick={onClose} className="p-1 rounded-lg hover:bg-border text-muted">
                         <X className="w-4 h-4" />
                     </button>
                 </div>
                 <form onSubmit={handleSubmit} className="space-y-3">
                     <div>
-                        <label className="text-[10px] text-[#4b5a6e] uppercase tracking-wider font-semibold">Nome</label>
+                        <label className="text-[10px] text-muted uppercase tracking-wider font-semibold">Nome</label>
                         <input value={name} onChange={e => setName(e.target.value)}
-                            className="w-full bg-[#0d1525] border border-[#1e2d45] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#00d4aa]/50 transition-colors" />
+                            className="w-full bg-surface border border-border rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-accent/50 transition-colors" />
                     </div>
                     <div>
-                        <label className="text-[10px] text-[#4b5a6e] uppercase tracking-wider font-semibold">Tipo</label>
+                        <label className="text-[10px] text-muted uppercase tracking-wider font-semibold">Tipo</label>
                         <select value={type} onChange={e => setType(e.target.value)}
-                            className="w-full bg-[#0d1525] border border-[#1e2d45] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#00d4aa]/50 transition-colors">
+                            className="w-full bg-surface border border-border rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-accent/50 transition-colors">
                             {Object.entries(TYPE_LABELS).map(([k, v]) => (
                                 <option key={k} value={k}>{v}</option>
                             ))}
                         </select>
                     </div>
                     <div>
-                        <label className="text-[10px] text-[#4b5a6e] uppercase tracking-wider font-semibold">Valor Total</label>
+                        <label className="text-[10px] text-muted uppercase tracking-wider font-semibold">Valor Total</label>
                         <input type="number" step="0.01" min="0" value={amount} onChange={e => setAmount(e.target.value)}
-                            className="w-full bg-[#0d1525] border border-[#1e2d45] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#00d4aa]/50 transition-colors" />
+                            className="w-full bg-surface border border-border rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-accent/50 transition-colors" />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                         <div>
-                            <label className="text-[10px] text-[#4b5a6e] uppercase tracking-wider font-semibold">Quantidade</label>
+                            <label className="text-[10px] text-muted uppercase tracking-wider font-semibold">Quantidade</label>
                             <input type="number" step="any" min="0" value={quantity} onChange={e => setQuantity(e.target.value)}
-                                className="w-full bg-[#0d1525] border border-[#1e2d45] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#00d4aa]/50 transition-colors" />
+                                className="w-full bg-surface border border-border rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-accent/50 transition-colors" />
                         </div>
                         <div>
-                            <label className="text-[10px] text-[#4b5a6e] uppercase tracking-wider font-semibold">Preço Unit.</label>
+                            <label className="text-[10px] text-muted uppercase tracking-wider font-semibold">Preço Unit.</label>
                             <input type="number" step="0.01" min="0" value={unitPrice} onChange={e => setUnitPrice(e.target.value)}
-                                className="w-full bg-[#0d1525] border border-[#1e2d45] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#00d4aa]/50 transition-colors" />
+                                className="w-full bg-surface border border-border rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-accent/50 transition-colors" />
                         </div>
                     </div>
                     <div>
-                        <label className="text-[10px] text-[#4b5a6e] uppercase tracking-wider font-semibold">Data (opcional)</label>
+                        <label className="text-[10px] text-muted uppercase tracking-wider font-semibold">Data (opcional)</label>
                         <input type="date" value={date} onChange={e => setDate(e.target.value)}
-                            className="w-full bg-[#0d1525] border border-[#1e2d45] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#00d4aa]/50 transition-colors" />
+                            className="w-full bg-surface border border-border rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-accent/50 transition-colors" />
                     </div>
                     <div>
-                        <label className="text-[10px] text-[#4b5a6e] uppercase tracking-wider font-semibold">Observações</label>
+                        <label className="text-[10px] text-muted uppercase tracking-wider font-semibold">Observações</label>
                         <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
-                            className="w-full bg-[#0d1525] border border-[#1e2d45] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#00d4aa]/50 transition-colors resize-none" />
+                            className="w-full bg-surface border border-border rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-accent/50 transition-colors resize-none" />
                     </div>
                     <button type="submit"
-                        className="w-full bg-gradient-to-r from-[#00d4aa] to-[#60a5fa] text-bg font-semibold py-2.5 rounded-xl text-sm hover:opacity-90 transition-all mt-2">
+                        className="w-full bg-gradient-to-r from-accent to-info text-bg font-semibold py-2.5 rounded-xl text-sm hover:opacity-90 transition-all mt-2">
                         {investment ? 'Salvar' : 'Criar Investimento'}
                     </button>
                 </form>

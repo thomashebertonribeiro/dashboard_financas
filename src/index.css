@@ -34,14 +34,6 @@
 }
 
 @layer utilities {
-    .glow-accent {
-        box-shadow: 0 0 20px #00d4aa33;
-    }
-
-    .glow-danger {
-        box-shadow: 0 0 20px #ff4d6d33;
-    }
-
     .noise {
         position: relative;
     }

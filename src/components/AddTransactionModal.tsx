@@ -58,18 +58,18 @@ export function AddTransactionModal({ isOpen, onClose, onSuccess }: Props) {
     }
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[#0a0f1e]/80 backdrop-blur-sm">
-            <div className="bg-[#111827] border border-[#1e2d45] rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh]">
-                <div className="flex items-center justify-between p-5 border-b border-[#1e2d45]">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-bg/80 backdrop-blur-sm">
+            <div className="bg-surface border border-border rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh]">
+                <div className="flex items-center justify-between p-5 border-b border-border">
                     <h2 className="text-white font-semibold">Novo Lançamento</h2>
-                    <button onClick={onClose} className="p-1 rounded-lg text-[#8899aa] hover:text-white hover:bg-[#1e2d45] transition-colors">
+                    <button onClick={onClose} className="p-1 rounded-lg text-subtle hover:text-white hover:bg-border transition-colors">
                         <X className="w-5 h-5" />
                     </button>
                 </div>
                 
                 <div className="p-5 overflow-y-auto">
                     {error && (
-                        <div className="mb-4 p-3 rounded-lg bg-[#ff4d6d]/10 border border-[#ff4d6d]/20 text-[#ff4d6d] text-sm">
+                        <div className="mb-4 p-3 rounded-lg bg-danger-dim border border-danger/20 text-danger text-sm">
                             {error}
                         </div>
                     )}
@@ -77,73 +77,73 @@ export function AddTransactionModal({ isOpen, onClose, onSuccess }: Props) {
                     <form id="add-tx-form" onSubmit={handleSubmit} className="space-y-4">
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-xs font-medium text-[#8899aa] mb-1.5">Tipo</label>
+                                <label className="block text-xs font-medium text-subtle mb-1.5">Tipo</label>
                                 <select 
                                     value={type} onChange={e => setType(e.target.value)} required
-                                    className="w-full bg-[#0a0f1e] border border-[#1e2d45] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#00d4aa] transition-colors"
+                                    className="w-full bg-bg border border-border rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-accent transition-colors"
                                 >
                                     <option value="Saída">Saída</option>
                                     <option value="Entrada">Entrada</option>
                                 </select>
                             </div>
                             <div>
-                                <label className="block text-xs font-medium text-[#8899aa] mb-1.5">Data</label>
+                                <label className="block text-xs font-medium text-subtle mb-1.5">Data</label>
                                 <input 
                                     type="date" value={date} onChange={e => setDate(e.target.value)} required
-                                    className="w-full bg-[#0a0f1e] border border-[#1e2d45] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#00d4aa] transition-colors" 
+                                    className="w-full bg-bg border border-border rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-accent transition-colors" 
                                 />
                             </div>
                         </div>
 
                         <div>
-                            <label className="block text-xs font-medium text-[#8899aa] mb-1.5">Descrição</label>
+                            <label className="block text-xs font-medium text-subtle mb-1.5">Descrição</label>
                             <input 
                                 type="text" placeholder="Ex: Supermercado" value={description} onChange={e => setDescription(e.target.value)} required
-                                className="w-full bg-[#0a0f1e] border border-[#1e2d45] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#00d4aa] transition-colors placeholder:text-[#4b5a6e]" 
+                                className="w-full bg-bg border border-border rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-accent transition-colors placeholder:text-muted" 
                             />
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-xs font-medium text-[#8899aa] mb-1.5">Valor (R$)</label>
+                                <label className="block text-xs font-medium text-subtle mb-1.5">Valor (R$)</label>
                                 <input 
                                     type="number" step="0.01" min="0.01" placeholder="0.00" value={amount} onChange={e => setAmount(e.target.value)} required
-                                    className="w-full bg-[#0a0f1e] border border-[#1e2d45] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#00d4aa] transition-colors placeholder:text-[#4b5a6e]" 
+                                    className="w-full bg-bg border border-border rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-accent transition-colors placeholder:text-muted" 
                                 />
                             </div>
                             <div>
-                                <label className="block text-xs font-medium text-[#8899aa] mb-1.5">Categoria</label>
+                                <label className="block text-xs font-medium text-subtle mb-1.5">Categoria</label>
                                 <input 
                                     type="text" placeholder="Ex: Alimentação" value={category} onChange={e => setCategory(e.target.value)} required
-                                    className="w-full bg-[#0a0f1e] border border-[#1e2d45] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#00d4aa] transition-colors placeholder:text-[#4b5a6e]" 
+                                    className="w-full bg-bg border border-border rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-accent transition-colors placeholder:text-muted" 
                                 />
                             </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-xs font-medium text-[#8899aa] mb-1.5">Meio de Pgto.</label>
+                                <label className="block text-xs font-medium text-subtle mb-1.5">Meio de Pgto.</label>
                                 <input 
                                     type="text" placeholder="Ex: Cartão de Crédito" value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}
-                                    className="w-full bg-[#0a0f1e] border border-[#1e2d45] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#00d4aa] transition-colors placeholder:text-[#4b5a6e]" 
+                                    className="w-full bg-bg border border-border rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-accent transition-colors placeholder:text-muted" 
                                 />
                             </div>
                             <div>
-                                <label className="block text-xs font-medium text-[#8899aa] mb-1.5">Banco/Conta</label>
+                                <label className="block text-xs font-medium text-subtle mb-1.5">Banco/Conta</label>
                                 <input 
                                     type="text" placeholder="Ex: Nubank" value={bank} onChange={e => setBank(e.target.value)}
-                                    className="w-full bg-[#0a0f1e] border border-[#1e2d45] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#00d4aa] transition-colors placeholder:text-[#4b5a6e]" 
+                                    className="w-full bg-bg border border-border rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-accent transition-colors placeholder:text-muted" 
                                 />
                             </div>
                         </div>
                     </form>
                 </div>
 
-                <div className="p-5 border-t border-[#1e2d45] bg-[#0a0f1e] rounded-b-2xl flex justify-end gap-3">
+                <div className="p-5 border-t border-border bg-bg rounded-b-2xl flex justify-end gap-3">
                     <button 
                         type="button" 
                         onClick={onClose}
-                        className="px-4 py-2 text-sm font-medium text-[#8899aa] hover:text-white transition-colors"
+                        className="px-4 py-2 text-sm font-medium text-subtle hover:text-white transition-colors"
                     >
                         Cancelar
                     </button>
@@ -151,7 +151,7 @@ export function AddTransactionModal({ isOpen, onClose, onSuccess }: Props) {
                         type="submit" 
                         form="add-tx-form"
                         disabled={loading}
-                        className="px-5 py-2 text-sm font-medium bg-gradient-to-r from-[#00d4aa] to-[#60a5fa] hover:opacity-90 text-bg rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-5 py-2 text-sm font-medium bg-gradient-to-r from-accent to-info hover:opacity-90 text-bg rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {loading ? 'Salvando...' : 'Adicionar'}
                     </button>

@@ -1,13 +1,13 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, type ReactNode } from 'react'
 import {
     BarChart, Bar, PieChart, Pie, Cell,
     XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts'
 import {
     Wallet, TrendingUp, TrendingDown, CreditCard,
-    RefreshCw, LogOut, Clock, ChevronRight,
+    RefreshCw, Clock, ChevronRight,
     Sparkles, CalendarClock, Layers
-} from 'lucide-react'
+, X} from 'lucide-react'
 import {
     fetchSheetData,
     computeKPIs,
@@ -29,78 +29,17 @@ import { InvestmentsSection } from './InvestmentsSection'
 import { OcrSection } from './OcrSection'
 import { CreditCardsSection } from './CreditCardsSection'
 import { BudgetsSection } from './BudgetsSection'
+import { KPICard } from './KPICard'
+import { PieTooltip } from './PieTooltip'
+import { fmt, timeAgo, toISODate, parseDateStr } from '../lib/dateUtils'
+import { useToast } from '../context/ToastContext'
 
-const COLORS = ['#00d4aa', '#60a5fa', '#fbbf24', '#ff4d6d', '#a78bfa', '#34d399', '#fb923c', '#f472b6']
+const CHART_COLORS = ['var(--color-accent)', 'var(--color-info)', 'var(--color-warning)', 'var(--color-danger)', '#a78bfa', '#34d399', '#fb923c', '#f472b6', '#22d3ee', '#8b5cf6', '#f43f5e', '#14b8a6']
 
-function fmt(v: number) {
-    return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-}
-
-function timeAgo(date: Date) {
-    const diff = Math.floor((Date.now() - date.getTime()) / 1000)
-    if (diff < 60) return `há ${diff}s`
-    if (diff < 3600) return `há ${Math.floor(diff / 60)}min`
-    return `há ${Math.floor(diff / 3600)}h`
-}
-
-const CustomTooltip = ({ active, payload, label }: any) => {
-    if (!active || !payload?.length) return null
-    return (
-        <div className="bg-[#1a2535] border border-[#1e2d45] rounded-xl p-3 text-xs shadow-xl">
-            <p className="text-[#8899aa] mb-2 font-medium">{label}</p>
-            {payload.map((p: any, i: number) => (
-                <div key={i} className="flex items-center gap-2 mb-1">
-                    <div className="w-2 h-2 rounded-full shrink-0" style={{ background: p.fill || p.color }} />
-                    <span className="text-[#8899aa] capitalize">{p.name ?? p.dataKey}:</span>
-                    <span className="text-white font-mono font-medium">{fmt(p.value)}</span>
-                </div>
-            ))}
-        </div>
-    )
-}
-
-const PieTooltip = ({ active, payload }: any) => {
-    if (!active || !payload?.length) return null
-    const item = payload[0]
-    return (
-        <div className="bg-[#1a2535] border border-[#1e2d45] rounded-xl p-3 text-xs shadow-xl">
-            <p className="text-white font-medium mb-1">{item.name}</p>
-            <p className="text-[#00d4aa] font-mono">{fmt(item.value)}</p>
-        </div>
-    )
-}
-
-function KPI({ label, value, icon, color, sub }: {
-    label: string; value: number; icon: React.ReactNode
-    color: 'green' | 'red' | 'blue' | 'yellow' | 'auto'
-    sub?: string
-}) {
-    const auto = color === 'auto' ? (value >= 0 ? 'green' : 'red') : color
-    const map = {
-        green: { border: 'border-[#00d4aa]/20', text: 'text-[#00d4aa]', bg: 'bg-[#00d4aa]/10' },
-        red: { border: 'border-[#ff4d6d]/20', text: 'text-[#ff4d6d]', bg: 'bg-[#ff4d6d]/10' },
-        blue: { border: 'border-[#60a5fa]/20', text: 'text-[#60a5fa]', bg: 'bg-[#60a5fa]/10' },
-        yellow: { border: 'border-[#fbbf24]/20', text: 'text-[#fbbf24]', bg: 'bg-[#fbbf24]/10' },
-    }
-    const c = map[auto]
-
-    return (
-        <div className={`relative bg-[#151e2d] border ${c.border} rounded-2xl p-5 flex flex-col gap-3 overflow-hidden transition-all hover:scale-[1.01] duration-200`}>
-            <div className={`absolute -top-6 -right-6 w-20 h-20 rounded-full ${c.bg} blur-2xl pointer-events-none`} />
-            <div className="flex items-center justify-between">
-                <span className="text-[#4b5a6e] text-[10px] font-medium uppercase tracking-widest">{label}</span>
-                <div className={`${c.bg} ${c.text} p-2 rounded-xl`}>{icon}</div>
-            </div>
-            <div className={`font-mono text-2xl font-bold ${c.text} tracking-tight`}>{fmt(value)}</div>
-            {sub && <p className="text-[#4b5a6e] text-xs">{sub}</p>}
-        </div>
-    )
-}
-
-function SectionTitle({ icon, title }: { icon: React.ReactNode; title: string }) {
+function SectionTitle({ icon, title }: { icon: ReactNode; title: string }) {
     return (
         <div className="flex items-center gap-2 mb-4">
-            <div className="text-[#00d4aa]">{icon}</div>
+            <div className="text-accent">{icon}</div>
             <h2 className="text-sm font-semibold text-white">{title}</h2>
         </div>
     )
@@ -108,33 +47,16 @@ function SectionTitle({ icon, title }: { icon: React.ReactNode; title: string })
 
 function EmptyState({ msg }: { msg?: string }) {
     return (
-        <div className="flex flex-col items-center justify-center h-36 text-[#4b5a6e]">
-            <div className="w-8 h-8 border border-dashed border-[#1e2d45] rounded-full flex items-center justify-center mb-2 text-base">—</div>
+        <div className="flex flex-col items-center justify-center h-36 text-muted">
+            <div className="w-8 h-8 border border-dashed border-border rounded-full flex items-center justify-center mb-2 text-base">—</div>
             <p className="text-xs">{msg || 'Sem dados'}</p>
         </div>
     )
 }
 
-function parseRowDate(raw: string): Date | null {
-    if (!raw) return null
-    // Remove caracteres invisíveis e espaços
-    const clean = raw.replace(/[^\d\/\-]/g, '').trim()
-    // Suporta dd/mm/yyyy, dd-mm-yyyy, d/m/yyyy
-    const parts = clean.split(/[\/\-]/)
-    if (parts.length !== 3) return null
-    const day = parseInt(parts[0], 10)
-    const month = parseInt(parts[1], 10)
-    let year = parseInt(parts[2], 10)
-    if (isNaN(day) || isNaN(month) || isNaN(year)) return null
-    if (year < 100) year += 2000
-    if (day < 1 || day > 31 || month < 1 || month > 12) return null
-    return new Date(year, month - 1, day, 12, 0, 0) // meio-dia evita problema de timezone
-}
-
 function isRowInPeriod(row: LancamentoRow, from: Date, to: Date): boolean {
-    const d = parseRowDate(row.data)
-    if (!d) return false // data inválida = exclui do filtro
-    // Compara só a data (ignora hora)
+    const d = parseDateStr(row.data)
+    if (!d) return false
     const fromDay = new Date(from.getFullYear(), from.getMonth(), from.getDate())
     const toDay = new Date(to.getFullYear(), to.getMonth(), to.getDate(), 23, 59, 59)
     return d >= fromDay && d <= toDay
@@ -150,6 +72,10 @@ export function Dashboard() {
     const [period, setPeriod] = useState<Period>(initialPeriod)
     const [isAddModalOpen, setIsAddModalOpen] = useState(false)
     const [isBulkImportOpen, setIsBulkImportOpen] = useState(false)
+    const [isImportModalOpen, setIsImportModalOpen] = useState(false)
+    const [importUrl, setImportUrl] = useState('')
+    const [importingSheet, setImportingSheet] = useState(false)
+    const { addToast } = useToast()
 
     const load = useCallback(async () => {
         setLoading(true)
@@ -165,42 +91,22 @@ export function Dashboard() {
         }
     }, [])
 
-    function validDateStr(raw: string): string | null {
-        const parts = raw.split(/[\/\-]/)
-        if (parts.length !== 3) return null
-        const [a, b, c] = parts.map(p => parseInt(p, 10))
-        if (isNaN(a) || isNaN(b) || isNaN(c)) return null
-        // dd/mm/yyyy or yyyy/mm/dd
-        const yyyy = c > 31 ? c : a
-        const mm = c > 31 ? b : (a > 31 ? c : b)
-        const dd = c > 31 ? a : (a > 31 ? b : c)
-        if (yyyy < 1900 || yyyy > 2100 || mm < 1 || mm > 12 || dd < 1 || dd > 31) return null
-        return `${yyyy}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`
-    }
-
     const handleImport = async () => {
-        const url = prompt("Cole a URL da sua planilha pública para importar os dados:")
-        if (!url) return
-        setLoading(true)
+        if (!importUrl.trim()) return
+        setImportingSheet(true)
         try {
-            const d = await fetchSheetData(url)
+            const d = await fetchSheetData(importUrl)
             const payload = d.rows.map(r => {
-                const parsedDate = validDateStr(r.data)
-                const dateStr: string = parsedDate ?? new Date().toISOString().split('T')[0]
-                if (!parsedDate) {
-                    console.warn(`Data não reconhecida na linha "${r.descricao}": "${r.data}" — usando data atual`)
-                }
+                const dateStr = toISODate(r.data) ?? new Date().toISOString().split('T')[0]
 
                 let due: string | null = null
                 if (r.vctoFatura) {
-                    due = validDateStr(r.vctoFatura)
+                    due = toISODate(r.vctoFatura)
                     if (!due) {
                         const mes = r.vctoFaturaMes ?? mesIndex(r.vctoFatura)
                         if (mes >= 0) {
                             const ano = new Date().getFullYear()
                             due = `${ano}-${String(mes + 1).padStart(2, '0')}-01`
-                        } else if (r.vctoFatura.trim()) {
-                            console.warn(`Vcto fatura não reconhecido na linha "${r.descricao}": "${r.vctoFatura}"`)
                         }
                     }
                 }
@@ -217,30 +123,69 @@ export function Dashboard() {
                 }
             }).filter(Boolean) as Transaction[]
             const result = await importTransactions(payload)
-            const msg = `Importados: ${result.imported}${result.skipped > 0 ? `, ${result.skipped} já existentes (pulados)` : ''}`
-            alert(msg)
+            addToast('success', `Importados: ${result.imported}${result.skipped > 0 ? `, ${result.skipped} já existentes (pulados)` : ''}`)
+            setIsImportModalOpen(false)
+            setImportUrl('')
             load()
         } catch (e: any) {
-            alert("Erro ao importar: " + e.message)
+            addToast('error', 'Erro ao importar: ' + e.message)
         } finally {
-            setLoading(false)
+            setImportingSheet(false)
         }
     }
 
     useEffect(() => { load() }, [load])
     useEffect(() => {
+        const anyModalOpen = isAddModalOpen || isBulkImportOpen || isImportModalOpen
+        if (anyModalOpen) return
         const interval = setInterval(load, 60000)
         return () => clearInterval(interval)
-    }, [load])
+    }, [load, isAddModalOpen, isBulkImportOpen, isImportModalOpen])
 
-    // ── Loading ──
+    useEffect(() => {
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key !== 'Escape') return
+            if (isImportModalOpen) { setIsImportModalOpen(false); setImportUrl('') }
+            if (isBulkImportOpen) setIsBulkImportOpen(false)
+            if (isAddModalOpen) setIsAddModalOpen(false)
+        }
+        if (isImportModalOpen || isBulkImportOpen || isAddModalOpen) {
+            document.addEventListener('keydown', onKey)
+            return () => document.removeEventListener('keydown', onKey)
+        }
+    }, [isImportModalOpen, isBulkImportOpen, isAddModalOpen])
+
+        // ── Loading ──
     if (loading && !data) {
         return (
-            <div className="min-h-screen bg-[#0a0f1e] flex items-center justify-center">
-                <div className="text-center">
-                    <div className="w-10 h-10 border-2 border-[#00d4aa]/20 border-t-[#00d4aa] rounded-full animate-spin-slow mx-auto mb-4" />
-                    <p className="text-[#8899aa] text-sm">Carregando aba Lançamentos...</p>
+            <div className="min-h-screen bg-bg pt-14 lg:pt-0 animate-slide-up">
+                <div className="sticky top-0 z-40 border-b border-border bg-bg/80 backdrop-blur-md">
+                    <div className="max-w-7xl mx-auto px-4 md:px-6 py-3 flex items-center justify-between">
+                        <div className="w-32 h-8 rounded-lg bg-surface animate-pulse" />
+                        <div className="flex gap-2">
+                            <div className="w-20 h-8 rounded-full bg-surface animate-pulse" />
+                            <div className="w-20 h-8 rounded-full bg-surface animate-pulse" />
+                        </div>
+                    </div>
                 </div>
+                <main className="max-w-7xl mx-auto px-4 md:px-6 py-6 space-y-6">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                        {[...Array(5)].map((_, i) => (
+                            <div key={i} className="bg-card border border-border rounded-2xl p-5 space-y-3">
+                                <div className="w-16 h-3 rounded bg-surface animate-pulse" />
+                                <div className="w-24 h-6 rounded bg-surface animate-pulse" style={{ animationDelay: `${i * 100}ms` }} />
+                            </div>
+                        ))}
+                    </div>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        {[...Array(2)].map((_, i) => (
+                            <div key={i} className="bg-card border border-border rounded-2xl p-5 h-64">
+                                <div className="w-32 h-4 rounded bg-surface animate-pulse mb-4" />
+                                <div className="w-full h-48 rounded-lg bg-surface animate-pulse" style={{ animationDelay: `${i * 150}ms` }} />
+                            </div>
+                        ))}
+                    </div>
+                </main>
             </div>
         )
     }
@@ -248,18 +193,18 @@ export function Dashboard() {
     // ── Error ──
     if (error && !data) {
         return (
-            <div className="min-h-screen bg-[#0a0f1e] flex items-center justify-center p-4">
-                <div className="bg-[#151e2d] border border-[#1e2d45] rounded-2xl p-8 max-w-md w-full text-center">
-                    <div className="w-12 h-12 bg-[#ff4d6d]/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <TrendingDown className="w-5 h-5 text-[#ff4d6d]" />
+            <div className="min-h-screen bg-bg flex items-center justify-center p-4">
+                <div className="bg-card border border-border rounded-2xl p-8 max-w-md w-full text-center">
+                    <div className="w-12 h-12 bg-danger-dim rounded-full flex items-center justify-center mx-auto mb-4">
+                        <TrendingDown className="w-5 h-5 text-danger" />
                     </div>
                     <h2 className="text-white font-semibold mb-2">Não foi possível carregar</h2>
-                    <p className="text-[#8899aa] text-sm mb-2">{error}</p>
-                    <p className="text-[#4b5a6e] text-xs mb-6">
-                        Verifique se a planilha é pública e se a aba se chama exatamente <span className="text-[#8899aa]">Lancamentos</span> (sem acento).
+                    <p className="text-subtle text-sm mb-2">{error}</p>
+                    <p className="text-muted text-xs mb-6">
+                        Verifique se a planilha é pública e se a aba se chama exatamente <span className="text-subtle">Lancamentos</span> (sem acento).
                     </p>
                     <div className="flex gap-3 justify-center">
-                        <button onClick={load} className="flex items-center gap-2 bg-[#00d4aa] text-[#0a0f1e] font-semibold px-5 py-2 rounded-xl hover:bg-[#00d4aa]/90 transition-all text-sm">
+                        <button onClick={load} className="flex items-center gap-2 bg-accent text-bg font-semibold px-5 py-2 rounded-xl hover:bg-accent/90 transition-all text-sm">
                             <RefreshCw className="w-3.5 h-3.5" /> Tentar novamente
                         </button>
                     </div>
@@ -280,107 +225,110 @@ export function Dashboard() {
     const insights = gerarInsights(rows)
     const recentes = [...rows].reverse().slice(0, 10)
 
-    // A função já retorna ordenado (atual → próximos → demais)
     const faturasOrdenadas = faturas
-    const proximaFatura = faturas.find(f => f.isProximo)
+
+    const FATURA_COLORS: Record<string, string> = {
+        'próximo': '#fbbf24',
+        'em 2 meses': '#60a5fa',
+        'em 3 meses': '#a78bfa',
+    }
+
+    const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: { name?: string; value?: number; fill?: string; color?: string; dataKey?: string }[]; label?: string | number }) => {
+        if (!active || !payload?.length) return null
+        return (
+            <div className="bg-card border border-border rounded-xl p-3 text-xs shadow-xl">
+                <p className="text-subtle mb-2 font-medium">{label}</p>
+                {payload.map((p, i) => (
+                    <div key={i} className="flex items-center gap-2 mb-1">
+                        <div className="w-2 h-2 rounded-full shrink-0" style={{ background: p.fill || p.color }} />
+                        <span className="text-subtle capitalize">{p.name ?? p.dataKey}:</span>
+                        <span className="text-white font-mono font-medium">{fmt(p.value ?? 0)}</span>
+                    </div>
+                ))}
+            </div>
+        )
+    }
 
     return (
-        <div className="min-h-screen bg-[#0a0f1e]">
-            {/* Navigation / User Controls */}
-            <nav className="border-b border-[#1e2d45] bg-[#0a0f1e]/80 backdrop-blur-md sticky top-0 z-50">
-                <div className="max-w-7xl mx-auto px-4 md:px-8 py-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#00d4aa] to-[#60a5fa] flex items-center justify-center shrink-0">
-                            <span className="text-bg font-bold text-lg leading-none">F</span>
-                        </div>
-                        <span className="text-white font-semibold tracking-wide hidden sm:block">
-                            Finanças <span className="text-[#00d4aa]">Pessoais</span>
-                        </span>
-                    </div>
+        <div className="min-h-screen bg-bg pt-14 lg:pt-0">
 
-                    <div className="flex items-center gap-3">
-                        <PeriodFilter period={period} onChange={setPeriod} />
+            {/* Top toolbar */}
+            <div className="sticky top-0 z-40 border-b border-border bg-bg/80 backdrop-blur-md">
+                <div className="max-w-7xl mx-auto px-4 md:px-6 py-3 flex items-center gap-2 overflow-x-auto">
+                    <PeriodFilter period={period} onChange={setPeriod} />
+                    <div className="flex items-center gap-2 ml-auto shrink-0">
                         <button
                             onClick={() => setIsAddModalOpen(true)}
-                            className="text-xs font-semibold px-4 py-2 bg-gradient-to-r from-[#00d4aa] to-[#60a5fa] text-bg hover:opacity-90 rounded-full transition-all shadow-lg"
+                            className="text-xs font-semibold px-4 py-2 bg-gradient-to-r from-accent to-info text-bg hover:opacity-90 rounded-full transition-all shadow-lg whitespace-nowrap"
                         >
                             + Novo Lançamento
                         </button>
                         <button
                             onClick={() => setIsBulkImportOpen(true)}
-                            className="text-xs font-semibold px-4 py-2 bg-[#00d4aa]/10 text-[#00d4aa] hover:bg-[#00d4aa]/20 border border-[#00d4aa]/30 rounded-full transition-all"
+                            className="text-xs font-semibold px-4 py-2 bg-accent-dim text-accent hover:bg-accent/20 border border-accent/30 rounded-full transition-all whitespace-nowrap"
                         >
                             + Importar em Massa
                         </button>
                         <button
-                            onClick={handleImport}
-                            className="text-xs font-semibold px-4 py-2 bg-[#60a5fa]/10 text-[#60a5fa] hover:bg-[#60a5fa]/20 border border-[#60a5fa]/30 rounded-full transition-all"
+                            onClick={() => setIsImportModalOpen(true)}
+                            className="text-xs font-semibold px-4 py-2 bg-info-dim text-info hover:bg-info/20 border border-info/30 rounded-full transition-all whitespace-nowrap"
                         >
                             Importar da Planilha
                         </button>
-                        <div className="text-right hidden md:block">
-                            <p className="text-xs text-[#8899aa] uppercase tracking-wider font-semibold">
-                                Atualizado
-                            </p>
-                            <div className="flex items-center gap-1.5 justify-end">
-                                <Clock className="w-3.5 h-3.5 text-[#00d4aa]" />
-                                <span className="text-sm font-medium text-white">{timeAgo(lastRefresh)}</span>
-                            </div>
+                        <div className="hidden md:flex items-center gap-1.5 text-xs text-subtle whitespace-nowrap pl-2 border-l border-border">
+                            <Clock className="w-3 h-3 text-accent" />
+                            {timeAgo(lastRefresh)}
                         </div>
                         <button
                             onClick={load}
-                            className="p-2 rounded-full hover:bg-[#1e2d45] text-[#8899aa] hover:text-white transition-colors"
-                            title="Atualizar dados"
+                            className="p-2 rounded-full hover:bg-surface text-muted hover:text-white transition-colors"
+                            title="Atualizar"
                         >
-                            <RefreshCw className="w-5 h-5" />
+                            <RefreshCw className="w-4 h-4" />
                         </button>
                     </div>
                 </div>
-            </nav>
+            </div>
 
             <main className="max-w-7xl mx-auto px-4 md:px-6 py-6 space-y-6">
 
-                {/* ── KPIs ── */}
-                <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-                    <KPI label="Total Entradas" value={kpis.totalEntradas} icon={<TrendingUp className="w-4 h-4" />} color="green" />
-                    <KPI label="Total Saídas" value={kpis.totalSaidas} icon={<TrendingDown className="w-4 h-4" />} color="red" />
-                    <KPI label="Gastos Cartão" value={kpis.totalCartao} icon={<CreditCard className="w-4 h-4" />} color="blue" sub="Crédito à vista + parcelado" />
-                    <KPI label="Parcelados" value={kpis.totalParcelado} icon={<Layers className="w-4 h-4" />} color="yellow" sub="Crédito parcelado" />
-                    <KPI label="Saldo" value={kpis.saldo} icon={<Wallet className="w-4 h-4" />} color="auto" />
+                <div data-section="dashboard" className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                    <KPICard label="Total Entradas" value={kpis.totalEntradas} icon={<TrendingUp className="w-4 h-4" />} color="accent" />
+                    <KPICard label="Total Saídas" value={kpis.totalSaidas} icon={<TrendingDown className="w-4 h-4" />} color="danger" />
+                    <KPICard label="Gastos Cartão" value={kpis.totalCartao} icon={<CreditCard className="w-4 h-4" />} color="info" sub="Crédito à vista + parcelado" />
+                    <KPICard label="Parcelados" value={kpis.totalParcelado} icon={<Layers className="w-4 h-4" />} color="warning" sub="Crédito parcelado" />
+                    <KPICard label="Saldo" value={kpis.saldo} icon={<Wallet className="w-4 h-4" />} color="auto" />
                 </div>
 
-                {/* ── Gráficos linha 1 ── */}
+                {/* Charts row */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-
-                    {/* Saídas por semana */}
-                    <div className="bg-[#151e2d] border border-[#1e2d45] rounded-2xl p-5">
+                    <div className="bg-card border border-border rounded-2xl p-5">
                         <SectionTitle icon={<CalendarClock className="w-4 h-4" />} title="Saídas por Semana" />
                         {semanas.length > 0 ? (
                             <ResponsiveContainer width="100%" height={200}>
                                 <BarChart data={semanas} margin={{ top: 4, right: 4, left: 0, bottom: 0 }} barSize={32}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#1e2d45" vertical={false} />
-                                    <XAxis dataKey="semana" tick={{ fill: '#4b5a6e', fontSize: 11 }} axisLine={false} tickLine={false} />
-                                    <YAxis tick={{ fill: '#4b5a6e', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `${(v / 1000).toFixed(0)}k`} />
+                                    <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+                                    <XAxis dataKey="semana" tick={{ fill: 'var(--color-muted)', fontSize: 11 }} axisLine={false} tickLine={false} />
+                                    <YAxis tick={{ fill: 'var(--color-muted)', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `${(v / 1000).toFixed(0)}k`} />
                                     <Tooltip content={<CustomTooltip />} />
-                                    <Bar dataKey="total" fill="#ff4d6d" name="Saídas" radius={[6, 6, 0, 0]} />
+                                    <Bar dataKey="total" fill="var(--color-danger)" name="Saídas" radius={[6, 6, 0, 0]} />
                                 </BarChart>
                             </ResponsiveContainer>
                         ) : <EmptyState msg="Sem saídas com data registrada" />}
                     </div>
 
-                    {/* Gastos por cartão — barras horizontais */}
-                    <div className="bg-[#151e2d] border border-[#1e2d45] rounded-2xl p-5">
+                    <div className="bg-card border border-border rounded-2xl p-5">
                         <SectionTitle icon={<CreditCard className="w-4 h-4" />} title="Gastos por Banco / Cartão" />
                         {porCartao.length > 0 ? (
                             <ResponsiveContainer width="100%" height={200}>
                                 <BarChart data={porCartao} layout="vertical" margin={{ top: 4, right: 4, left: 0, bottom: 0 }} barSize={20}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#1e2d45" horizontal={false} />
-                                    <XAxis type="number" tick={{ fill: '#4b5a6e', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `${(v / 1000).toFixed(0)}k`} />
-                                    <YAxis type="category" dataKey="banco" tick={{ fill: '#8899aa', fontSize: 11 }} axisLine={false} tickLine={false} width={90} />
+                                    <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" horizontal={false} />
+                                    <XAxis type="number" tick={{ fill: 'var(--color-muted)', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `${(v / 1000).toFixed(0)}k`} />
+                                    <YAxis type="category" dataKey="banco" tick={{ fill: 'var(--color-subtle)', fontSize: 11 }} axisLine={false} tickLine={false} width={90} />
                                     <Tooltip content={<CustomTooltip />} />
                                     <Bar dataKey="total" name="Gastos" radius={[0, 6, 6, 0]}>
                                         {porCartao.map((_, i) => (
-                                            <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                                            <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
                                         ))}
                                     </Bar>
                                 </BarChart>
@@ -389,70 +337,62 @@ export function Dashboard() {
                     </div>
                 </div>
 
-                {/* ── Gráficos linha 2 ── */}
+                {/* Faturas, Categorias, Insights */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-
-                    {/* Faturas por mês */}
-                    <div className="bg-[#151e2d] border border-[#1e2d45] rounded-2xl p-5 flex flex-col gap-4">
+                    <div className="bg-card border border-border rounded-2xl p-5 flex flex-col gap-4">
                         <SectionTitle icon={<CalendarClock className="w-4 h-4" />} title="Faturas por Vencimento" />
-
                         {faturasOrdenadas.length > 0 ? (
                             <>
-                                {/* Próximos 3 meses — cards em destaque */}
                                 {(() => {
                                     const prox3 = faturasOrdenadas.filter(f => f.isProximos3)
-                                    const colorMap: Record<string, { bg: string; border: string; text: string; badge: string }> = {
-                                        'próximo': { bg: 'bg-[#fbbf24]/10', border: 'border-[#fbbf24]/30', text: 'text-[#fbbf24]', badge: 'bg-[#fbbf24]/20 text-[#fbbf24]' },
-                                        'em 2 meses': { bg: 'bg-[#60a5fa]/10', border: 'border-[#60a5fa]/30', text: 'text-[#60a5fa]', badge: 'bg-[#60a5fa]/20 text-[#60a5fa]' },
-                                        'em 3 meses': { bg: 'bg-[#a78bfa]/10', border: 'border-[#a78bfa]/30', text: 'text-[#a78bfa]', badge: 'bg-[#a78bfa]/20 text-[#a78bfa]' },
-                                    }
                                     if (prox3.length === 0) return null
                                     return (
                                         <div className="grid grid-cols-1 gap-2">
-                                            {prox3.map((f, i) => {
-                                                const label = f.proximoLabel ?? ''
-                                                const c = colorMap[label] ?? colorMap['em 3 meses']
-                                                return (
-                                                    <div key={i} className={`flex items-center justify-between px-3 py-2.5 rounded-xl border ${c.bg} ${c.border}`}>
-                                                        <div className="flex items-center gap-2">
-                                                            <span className={`font-semibold text-sm ${c.text}`}>{f.mes}</span>
-                                                            <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${c.badge}`}>{label}</span>
-                                                        </div>
-                                                        <span className={`font-mono font-bold text-sm ${c.text}`}>{fmt(f.total)}</span>
+                                            {prox3.map(f => (
+                                                <div key={f.mes} className="flex items-center justify-between px-3 py-2.5 rounded-xl border"
+                                                    style={{
+                                                        backgroundColor: `color-mix(in srgb, ${FATURA_COLORS[f.proximoLabel ?? ''] ?? '#a78bfa'} 10%, transparent)`,
+                                                        borderColor: `color-mix(in srgb, ${FATURA_COLORS[f.proximoLabel ?? ''] ?? '#a78bfa'} 30%, transparent)`,
+                                                    }}
+                                                >
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="font-semibold text-sm text-white">{f.mes}</span>
+                                                        <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium"
+                                                            style={{
+                                                                backgroundColor: `color-mix(in srgb, ${FATURA_COLORS[f.proximoLabel ?? ''] ?? '#a78bfa'} 20%, transparent)`,
+                                                                color: FATURA_COLORS[f.proximoLabel ?? ''] ?? '#a78bfa',
+                                                            }}
+                                                        >{f.proximoLabel}</span>
                                                     </div>
-                                                )
-                                            })}
+                                                    <span className="font-mono font-bold text-sm text-white">{fmt(f.total)}</span>
+                                                </div>
+                                            ))}
                                         </div>
                                     )
                                 })()}
-
-                                {/* Divisor */}
                                 {faturasOrdenadas.some(f => f.isAtual || !f.isProximos3) && (
-                                    <div className="border-t border-[#1e2d45]" />
+                                    <div className="border-t border-border" />
                                 )}
-
-                                {/* Todos os meses — barra de progresso */}
                                 <div className="space-y-2.5">
-                                    {faturasOrdenadas.map((f, i) => {
+                                    {faturasOrdenadas.map((f) => {
                                         const max = Math.max(...faturasOrdenadas.map(x => x.total))
                                         const pct = Math.round((f.total / max) * 100)
                                         const color = f.isProximo ? '#fbbf24'
                                             : f.proximoLabel === 'em 2 meses' ? '#60a5fa'
                                                 : f.proximoLabel === 'em 3 meses' ? '#a78bfa'
-                                                    : f.isAtual ? '#00d4aa'
-                                                        : '#4b5a6e'
+                                                    : f.isAtual ? '#00d4aa' : '#4b5a6e'
                                         return (
-                                            <div key={i}>
+                                            <div key={f.mes}>
                                                 <div className="flex justify-between text-xs mb-1">
                                                     <div className="flex items-center gap-1.5">
                                                         <span style={{ color }} className="font-medium">{f.mes}</span>
                                                         {f.isAtual && (
-                                                            <span className="text-[9px] bg-[#00d4aa]/10 text-[#00d4aa] border border-[#00d4aa]/20 px-1.5 py-0.5 rounded-full">atual</span>
+                                                            <span className="text-[10px] bg-accent-dim text-accent border border-accent/20 px-1.5 py-0.5 rounded-full">atual</span>
                                                         )}
                                                     </div>
                                                     <span className="text-white font-mono">{fmt(f.total)}</span>
                                                 </div>
-                                                <div className="w-full bg-[#111827] rounded-full h-1.5">
+                                                <div className="w-full bg-surface rounded-full h-1.5">
                                                     <div className="h-1.5 rounded-full transition-all duration-700" style={{ width: `${pct}%`, background: color }} />
                                                 </div>
                                             </div>
@@ -462,9 +402,7 @@ export function Dashboard() {
                             </>
                         ) : <EmptyState msg="Sem lançamentos de crédito com vcto" />}
                     </div>
-
-                    {/* Pie categorias */}
-                    <div className="bg-[#151e2d] border border-[#1e2d45] rounded-2xl p-5">
+                    <div className="bg-card border border-border rounded-2xl p-5">
                         <SectionTitle icon={<Layers className="w-4 h-4" />} title="Saídas por Categoria" />
                         {categorias.length > 0 ? (
                             <>
@@ -472,7 +410,7 @@ export function Dashboard() {
                                     <PieChart>
                                         <Pie data={categorias} cx="50%" cy="50%" innerRadius={42} outerRadius={68} dataKey="value" paddingAngle={3}>
                                             {categorias.map((_, i) => (
-                                                <Cell key={i} fill={COLORS[i % COLORS.length]} stroke="transparent" />
+                                                <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} stroke="transparent" />
                                             ))}
                                         </Pie>
                                         <Tooltip content={<PieTooltip />} />
@@ -480,10 +418,10 @@ export function Dashboard() {
                                 </ResponsiveContainer>
                                 <div className="space-y-1.5 max-h-[130px] overflow-y-auto pr-1 mt-2">
                                     {categorias.map((item, i) => (
-                                        <div key={i} className="flex items-center justify-between text-xs">
+                                        <div key={item.name} className="flex items-center justify-between text-xs">
                                             <div className="flex items-center gap-2 min-w-0">
-                                                <div className="w-2 h-2 rounded-full shrink-0" style={{ background: COLORS[i % COLORS.length] }} />
-                                                <span className="text-[#8899aa] truncate">{item.name}</span>
+                                                <div className="w-2 h-2 rounded-full shrink-0" style={{ background: CHART_COLORS[i % CHART_COLORS.length] }} />
+                                                <span className="text-subtle truncate">{item.name}</span>
                                             </div>
                                             <span className="text-white font-mono shrink-0 ml-2">{fmt(item.value)}</span>
                                         </div>
@@ -492,19 +430,11 @@ export function Dashboard() {
                             </>
                         ) : <EmptyState />}
                     </div>
-
-                    {/* Insights */}
-                    <div className="bg-[#151e2d] border border-[#1e2d45] rounded-2xl p-5">
+                    <div className="bg-card border border-border rounded-2xl p-5">
                         <SectionTitle icon={<Sparkles className="w-4 h-4" />} title="Insights" />
                         <div className="flex flex-col gap-3">
                             {insights.map((ins, i) => (
-                                <div
-                                    key={i}
-                                    className={`flex items-start gap-2 text-xs p-3 rounded-xl border ${ins.good
-                                        ? 'border-[#00d4aa]/20 bg-[#00d4aa]/5 text-[#00d4aa]'
-                                        : 'border-[#ff4d6d]/20 bg-[#ff4d6d]/5 text-[#ff4d6d]'
-                                        }`}
-                                >
+                                <div key={i} className={`flex items-start gap-2 text-xs p-3 rounded-xl border ${ins.good ? 'border-accent/20 bg-accent-dim text-accent' : 'border-danger/20 bg-danger-dim text-danger'}`}>
                                     <ChevronRight className="w-3 h-3 mt-0.5 shrink-0" />
                                     <span>{ins.text}</span>
                                 </div>
@@ -513,34 +443,33 @@ export function Dashboard() {
                     </div>
                 </div>
 
-                {/* ── Lançamentos Recentes ── */}
-                <div className="bg-[#151e2d] border border-[#1e2d45] rounded-2xl p-5">
+                {/* Recent Transactions */}
+                <div className="bg-card border border-border rounded-2xl p-5">
                     <SectionTitle icon={<Wallet className="w-4 h-4" />} title="Lançamentos Recentes" />
                     {recentes.length > 0 ? (
                         <div className="overflow-x-auto">
                             <table className="w-full text-xs">
                                 <thead>
-                                    <tr className="border-b border-[#1e2d45]">
+                                    <tr className="border-b border-border">
                                         {['Data', 'Descrição', 'Categoria', 'Tipo Pgto', 'Banco', 'Vcto', 'Valor'].map(h => (
-                                            <th key={h} className="text-left text-[#4b5a6e] font-medium pb-2 pr-4 whitespace-nowrap">{h}</th>
+                                            <th key={h} className="text-left text-muted font-medium pb-2 pr-4 whitespace-nowrap">{h}</th>
                                         ))}
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {recentes.map((r, i) => (
-                                        <tr key={i} className="border-b border-[#1e2d45]/50 hover:bg-[#111827]/60 transition-colors">
-                                            <td className="py-2.5 pr-4 text-[#4b5a6e] font-mono whitespace-nowrap">{r.data}</td>
-                                            <td className="py-2.5 pr-4 text-[#8899aa] max-w-[140px] truncate">{r.descricao}</td>
-                                            <td className="py-2.5 pr-4 text-[#4b5a6e] whitespace-nowrap">{r.categoria}</td>
+                                    {recentes.map(r => (
+                                        <tr key={r.data + r.descricao + r.valor} className="border-b border-border/50 hover:bg-surface/60 transition-colors">
+                                            <td className="py-2.5 pr-4 text-muted font-mono whitespace-nowrap">{r.data}</td>
+                                            <td className="py-2.5 pr-4 text-subtle max-w-[140px] truncate">{r.descricao}</td>
+                                            <td className="py-2.5 pr-4 text-muted whitespace-nowrap">{r.categoria}</td>
                                             <td className="py-2.5 pr-4 whitespace-nowrap">
-                                                <span className="text-[10px] px-2 py-0.5 rounded-full border font-medium
-                          border-[#60a5fa]/20 bg-[#60a5fa]/5 text-[#60a5fa]">
+                                                <span className="text-[10px] px-2 py-0.5 rounded-full border font-medium border-info/20 bg-info-dim text-info">
                                                     {r.tipoPagamento || '—'}
                                                 </span>
                                             </td>
-                                            <td className="py-2.5 pr-4 text-[#8899aa] whitespace-nowrap">{r.banco || '—'}</td>
-                                            <td className="py-2.5 pr-4 text-[#4b5a6e] whitespace-nowrap">{r.vctoFatura || '—'}</td>
-                                            <td className={`py-2.5 text-right font-mono font-semibold whitespace-nowrap ${r.transacao === 'Entrada' ? 'text-[#00d4aa]' : 'text-[#ff4d6d]'}`}>
+                                            <td className="py-2.5 pr-4 text-subtle whitespace-nowrap">{r.banco || '—'}</td>
+                                            <td className="py-2.5 pr-4 text-muted whitespace-nowrap">{r.vctoFatura || '—'}</td>
+                                            <td className={`py-2.5 text-right font-mono font-semibold whitespace-nowrap ${r.transacao === 'Entrada' ? 'text-accent' : 'text-danger'}`}>
                                                 {r.transacao === 'Entrada' ? '+' : '-'}{fmt(r.valor)}
                                             </td>
                                         </tr>
@@ -551,23 +480,47 @@ export function Dashboard() {
                     ) : <EmptyState msg="Nenhum lançamento encontrado" />}
                 </div>
 
-                {/* ── Metas ── */}
-                <GoalsSection />
-
-                {/* ── Investimentos ── */}
-                <InvestmentsSection />
-
-                {/* ── Orçamentos ── */}
-                <BudgetsSection />
-
-                {/* ── Cartões de Crédito ── */}
-                <CreditCardsSection />
-
-                {/* ── OCR ── */}
-                <OcrSection />
+                <div data-section="metas"><GoalsSection /></div>
+                <div data-section="investimentos"><InvestmentsSection /></div>
+                <div data-section="orcamentos"><BudgetsSection /></div>
+                <div data-section="cartoes"><CreditCardsSection /></div>
+                <div data-section="ocr"><OcrSection /></div>
 
             </main>
-            
+
+            {/* Import Sheet Modal */}
+            {isImportModalOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-bg/80 backdrop-blur-sm" onClick={() => { setIsImportModalOpen(false); setImportUrl('') }}>
+                    <div className="bg-card border border-border rounded-2xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-white font-semibold">Importar da Planilha</h3>
+                            <button onClick={() => { setIsImportModalOpen(false); setImportUrl('') }} className="p-1 rounded-lg hover:bg-border text-muted">
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+                        <p className="text-subtle text-xs mb-3">Cole a URL pública da sua planilha do Google Sheets:</p>
+                        <input
+                            value={importUrl}
+                            onChange={e => setImportUrl(e.target.value)}
+                            placeholder="https://docs.google.com/spreadsheets/d/..."
+                            className="w-full bg-surface border border-border rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-accent/50 transition-colors placeholder:text-muted"
+                        />
+                        <div className="flex justify-end gap-3 mt-4">
+                            <button onClick={() => { setIsImportModalOpen(false); setImportUrl('') }} className="px-4 py-2 text-sm font-medium text-subtle hover:text-white transition-colors">
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={handleImport}
+                                disabled={importingSheet || !importUrl.trim()}
+                                className="flex items-center gap-2 px-5 py-2 text-sm font-medium bg-gradient-to-r from-accent to-info hover:opacity-90 text-bg rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {importingSheet ? 'Importando...' : 'Importar'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <AddTransactionModal 
                 isOpen={isAddModalOpen} 
                 onClose={() => setIsAddModalOpen(false)} 

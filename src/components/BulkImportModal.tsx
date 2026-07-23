@@ -1,6 +1,8 @@
 import { useState, useMemo } from 'react'
 import { X, Upload, AlertCircle, CheckCircle } from 'lucide-react'
 import { importTransactions, type Transaction } from '../lib/api'
+import { toISODate } from '../lib/dateUtils'
+import { useToast } from '../context/ToastContext'
 
 interface Props {
     isOpen: boolean
@@ -18,18 +20,6 @@ interface ParsedRow {
     payment_method: string
     bank: string
     error?: string
-}
-
-function validDateStr(raw: string): string | null {
-    const parts = raw.trim().split(/[\/\-]/)
-    if (parts.length !== 3) return null
-    const [a, b, c] = parts.map(p => parseInt(p, 10))
-    if (isNaN(a) || isNaN(b) || isNaN(c)) return null
-    const yyyy = c > 31 ? c : a
-    const mm = c > 31 ? b : (a > 31 ? c : b)
-    const dd = c > 31 ? a : (a > 31 ? b : c)
-    if (yyyy < 1900 || yyyy > 2100 || mm < 1 || mm > 12 || dd < 1 || dd > 31) return null
-    return `${yyyy}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`
 }
 
 function parseValor(raw: string): number {
@@ -62,6 +52,7 @@ export function BulkImportModal({ isOpen, onClose, onSuccess }: Props) {
     const [importing, setImporting] = useState(false)
     const [error, setError] = useState('')
     const [result, setResult] = useState<{ total: number; ok: number; errors: string[] } | null>(null)
+    const { addToast } = useToast()
 
     const rows = useMemo((): ParsedRow[] => {
         if (!raw.trim()) return []
@@ -89,7 +80,7 @@ export function BulkImportModal({ isOpen, onClose, onSuccess }: Props) {
                 continue
             }
 
-            const dateStr = validDateStr(cols[2])
+            const dateStr = toISODate(cols[2])
             if (!dateStr) {
                 parsed.push({ line, description: descricao, amount: valor, date: '', type: 'Saída', category: cols[3] || '', payment_method: cols[4] || '', bank: cols[5] || '', error: 'Data inválida (use dd/mm/aaaa)' })
                 continue
@@ -138,9 +129,11 @@ export function BulkImportModal({ isOpen, onClose, onSuccess }: Props) {
 
             await importTransactions(payload)
             setResult({ total: rows.length, ok: validRows.length, errors: rows.filter(r => r.error).map(r => `Linha ${r.line}: ${r.error}`) })
+            addToast('success', `${validRows.length} de ${rows.length} linhas importadas`)
             onSuccess()
         } catch (e: any) {
             setError(e.message || 'Erro ao importar')
+            addToast('error', e.message || 'Erro ao importar')
         } finally {
             setImporting(false)
         }
@@ -151,97 +144,97 @@ export function BulkImportModal({ isOpen, onClose, onSuccess }: Props) {
     const hasData = raw.trim().length > 0
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[#0a0f1e]/80 backdrop-blur-sm">
-            <div className="bg-[#111827] border border-[#1e2d45] rounded-2xl w-full max-w-3xl shadow-2xl flex flex-col max-h-[90vh]">
-                <div className="flex items-center justify-between p-5 border-b border-[#1e2d45]">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-bg/80 backdrop-blur-sm">
+            <div className="bg-surface border border-border rounded-2xl w-full max-w-3xl shadow-2xl flex flex-col max-h-[90vh]">
+                <div className="flex items-center justify-between p-5 border-b border-border">
                     <h2 className="text-white font-semibold">Importar em Massa</h2>
-                    <button onClick={onClose} className="p-1 rounded-lg text-[#8899aa] hover:text-white hover:bg-[#1e2d45] transition-colors">
+                    <button onClick={onClose} className="p-1 rounded-lg text-subtle hover:text-white hover:bg-[#1e2d45] transition-colors">
                         <X className="w-5 h-5" />
                     </button>
                 </div>
 
                 <div className="p-5 overflow-y-auto flex-1 space-y-4">
                     {error && (
-                        <div className="p-3 rounded-xl bg-[#ff4d6d]/10 border border-[#ff4d6d]/20 text-[#ff4d6d] text-sm">
+                        <div className="p-3 rounded-xl bg-danger-dim border border-[#ff4d6d]/20 text-danger text-sm">
                             {error}
                         </div>
                     )}
 
                     {result && (
-                        <div className="p-4 rounded-xl bg-[#00d4aa]/10 border border-[#00d4aa]/20">
-                            <div className="flex items-center gap-2 text-[#00d4aa] font-medium mb-1">
+                        <div className="p-4 rounded-xl bg-accent-dim border border-[#00d4aa]/20">
+                            <div className="flex items-center gap-2 text-accent font-medium mb-1">
                                 <CheckCircle className="w-4 h-4" />
                                 Importação concluída
                             </div>
-                            <p className="text-sm text-[#8899aa]">
+                            <p className="text-sm text-subtle">
                                 {result.ok} de {result.total} linhas importadas com sucesso.
                                 {result.errors.length > 0 && (
-                                    <span className="text-[#fbbf24]"> {result.errors.length} com erros.</span>
+                                    <span className="text-warning"> {result.errors.length} com erros.</span>
                                 )}
                             </p>
                         </div>
                     )}
 
                     <div>
-                        <label className="block text-xs font-medium text-[#8899aa] mb-1.5">
+                        <label className="block text-xs font-medium text-subtle mb-1.5">
                             Cole os dados abaixo (um lançamento por linha)
                         </label>
-                        <div className="text-[10px] text-[#4b5a6e] mb-2 font-mono whitespace-pre leading-relaxed">{FORMAT_HINT}</div>
+                        <div className="text-[10px] text-muted mb-2 font-mono whitespace-pre leading-relaxed">{FORMAT_HINT}</div>
                         <textarea
                             value={raw}
                             onChange={e => { setRaw(e.target.value); setResult(null) }}
                             placeholder="Cole aqui os lançamentos..."
                             rows={8}
-                            className="w-full bg-[#0a0f1e] border border-[#1e2d45] rounded-xl px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-[#00d4aa] transition-colors placeholder:text-[#4b5a6e] resize-y"
+                            className="w-full bg-bg border border-border rounded-xl px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-[#00d4aa] transition-colors placeholder:text-muted resize-y"
                         />
                     </div>
 
                     {hasData && (
                         <div>
                             <div className="flex items-center justify-between mb-2">
-                                <span className="text-xs font-medium text-[#8899aa]">
+                                <span className="text-xs font-medium text-subtle">
                                     Prévia ({rows.length} linha{rows.length !== 1 ? 's' : ''}
                                     {hasErrors && `, ${rows.filter(r => r.error).length} com erro`}
                                     )
                                 </span>
                                 {validRows.length > 0 && (
-                                    <span className="text-xs text-[#00d4aa]">{validRows.length} válida{validRows.length !== 1 ? 's' : ''}</span>
+                                    <span className="text-xs text-accent">{validRows.length} válida{validRows.length !== 1 ? 's' : ''}</span>
                                 )}
                             </div>
-                            <div className="overflow-x-auto max-h-52 overflow-y-auto border border-[#1e2d45] rounded-xl">
+                            <div className="overflow-x-auto max-h-52 overflow-y-auto border border-border rounded-xl">
                                 <table className="w-full text-xs">
                                     <thead>
-                                        <tr className="border-b border-[#1e2d45] bg-[#0a0f1e]">
-                                            <th className="text-left text-[#4b5a6e] font-medium px-3 py-2 whitespace-nowrap">#</th>
-                                            <th className="text-left text-[#4b5a6e] font-medium px-3 py-2 whitespace-nowrap">Descrição</th>
-                                            <th className="text-right text-[#4b5a6e] font-medium px-3 py-2 whitespace-nowrap">Valor</th>
-                                            <th className="text-left text-[#4b5a6e] font-medium px-3 py-2 whitespace-nowrap">Data</th>
-                                            <th className="text-left text-[#4b5a6e] font-medium px-3 py-2 whitespace-nowrap">Tipo</th>
-                                            <th className="text-left text-[#4b5a6e] font-medium px-3 py-2 whitespace-nowrap">Categoria</th>
-                                            <th className="text-left text-[#4b5a6e] font-medium px-3 py-2 whitespace-nowrap">Pgto</th>
-                                            <th className="text-left text-[#4b5a6e] font-medium px-3 py-2 whitespace-nowrap">Banco</th>
+                                        <tr className="border-b border-border bg-bg">
+                                            <th className="text-left text-muted font-medium px-3 py-2 whitespace-nowrap">#</th>
+                                            <th className="text-left text-muted font-medium px-3 py-2 whitespace-nowrap">Descrição</th>
+                                            <th className="text-right text-muted font-medium px-3 py-2 whitespace-nowrap">Valor</th>
+                                            <th className="text-left text-muted font-medium px-3 py-2 whitespace-nowrap">Data</th>
+                                            <th className="text-left text-muted font-medium px-3 py-2 whitespace-nowrap">Tipo</th>
+                                            <th className="text-left text-muted font-medium px-3 py-2 whitespace-nowrap">Categoria</th>
+                                            <th className="text-left text-muted font-medium px-3 py-2 whitespace-nowrap">Pgto</th>
+                                            <th className="text-left text-muted font-medium px-3 py-2 whitespace-nowrap">Banco</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {rows.map((r, i) => (
-                                            <tr key={i} className={`border-b border-[#1e2d45]/50 ${r.error ? 'bg-[#ff4d6d]/5' : ''}`}>
-                                                <td className={`px-3 py-1.5 whitespace-nowrap font-mono ${r.error ? 'text-[#ff4d6d]' : 'text-[#4b5a6e]'}`}>
+                                            <tr key={i} className={`border-b border-border/50 ${r.error ? 'bg-[#ff4d6d]/5' : ''}`}>
+                                                <td className={`px-3 py-1.5 whitespace-nowrap font-mono ${r.error ? 'text-danger' : 'text-muted'}`}>
                                                     {r.error ? <AlertCircle className="w-3 h-3 inline mr-1" /> : null}
                                                     {r.line}
                                                 </td>
-                                                <td className="px-3 py-1.5 text-[#8899aa] max-w-[160px] truncate">{r.description || <span className="text-[#ff4d6d]">{r.error}</span>}</td>
+                                                <td className="px-3 py-1.5 text-subtle max-w-[160px] truncate">{r.description || <span className="text-danger">{r.error}</span>}</td>
                                                 <td className="px-3 py-1.5 text-right font-mono text-white">{r.amount > 0 ? r.amount.toFixed(2) : '—'}</td>
-                                                <td className="px-3 py-1.5 text-[#8899aa] font-mono whitespace-nowrap">{r.date || '—'}</td>
+                                                <td className="px-3 py-1.5 text-subtle font-mono whitespace-nowrap">{r.date || '—'}</td>
                                                 <td className="px-3 py-1.5 whitespace-nowrap">
                                                     {r.type === 'Entrada' ? (
-                                                        <span className="text-[#00d4aa]">Entrada</span>
+                                                        <span className="text-accent">Entrada</span>
                                                     ) : r.type === 'Saída' ? (
-                                                        <span className="text-[#ff4d6d]">Saída</span>
-                                                    ) : <span className="text-[#4b5a6e]">—</span>}
+                                                        <span className="text-danger">Saída</span>
+                                                    ) : <span className="text-muted">—</span>}
                                                 </td>
-                                                <td className="px-3 py-1.5 text-[#8899aa] max-w-[100px] truncate">{r.category || '—'}</td>
-                                                <td className="px-3 py-1.5 text-[#8899aa] max-w-[100px] truncate">{r.payment_method || '—'}</td>
-                                                <td className="px-3 py-1.5 text-[#8899aa] max-w-[100px] truncate">{r.bank || '—'}</td>
+                                                <td className="px-3 py-1.5 text-subtle max-w-[100px] truncate">{r.category || '—'}</td>
+                                                <td className="px-3 py-1.5 text-subtle max-w-[100px] truncate">{r.payment_method || '—'}</td>
+                                                <td className="px-3 py-1.5 text-subtle max-w-[100px] truncate">{r.bank || '—'}</td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -251,11 +244,11 @@ export function BulkImportModal({ isOpen, onClose, onSuccess }: Props) {
                     )}
                 </div>
 
-                <div className="p-5 border-t border-[#1e2d45] bg-[#0a0f1e] rounded-b-2xl flex justify-end gap-3">
+                <div className="p-5 border-t border-border bg-bg rounded-b-2xl flex justify-end gap-3">
                     <button
                         type="button"
                         onClick={onClose}
-                        className="px-4 py-2 text-sm font-medium text-[#8899aa] hover:text-white transition-colors"
+                        className="px-4 py-2 text-sm font-medium text-subtle hover:text-white transition-colors"
                     >
                         {result ? 'Fechar' : 'Cancelar'}
                     </button>
