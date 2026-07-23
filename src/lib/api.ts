@@ -13,6 +13,21 @@ export interface CreditCard {
     updated_at?: string
 }
 
+export interface Budget {
+    id?: string
+    user_id?: string
+    category: string
+    amount: number
+    period: 'monthly' | 'yearly' | 'custom'
+    start_date?: string | null
+    end_date?: string | null
+    created_at?: string
+    updated_at?: string
+    // computed by backend
+    spent?: number
+    pct?: number
+}
+
 export interface Transaction {
     id?: string
     user_id?: string
@@ -246,6 +261,36 @@ export async function updateCreditCard(id: string, card: Partial<CreditCard>): P
 export async function deleteCreditCard(id: string): Promise<void> {
     const res = await fetch(`/api/credit-cards/${id}`, { method: 'DELETE', headers: getHeaders() })
     if (!res.ok) throw new Error('Erro ao excluir cartão')
+}
+
+export async function fetchBudgets(): Promise<Budget[]> {
+    const res = await fetch('/api/budgets', { headers: getHeaders() })
+    if (!res.ok) throw new Error('Falha ao carregar orçamentos')
+    const json = await res.json()
+    return json.data ?? []
+}
+
+export async function createBudget(budget: Partial<Budget>): Promise<Budget> {
+    const res = await fetch('/api/budgets', {
+        method: 'POST', headers: getHeaders(), body: JSON.stringify(budget)
+    })
+    if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Erro ao criar orçamento') }
+    const json = await res.json()
+    return json.data
+}
+
+export async function updateBudget(id: string, budget: Partial<Budget>): Promise<Budget> {
+    const res = await fetch(`/api/budgets/${id}`, {
+        method: 'PUT', headers: getHeaders(), body: JSON.stringify(budget)
+    })
+    if (!res.ok) { const j = await res.json(); throw new Error(j.error || 'Erro ao atualizar orçamento') }
+    const json = await res.json()
+    return json.data
+}
+
+export async function deleteBudget(id: string): Promise<void> {
+    const res = await fetch(`/api/budgets/${id}`, { method: 'DELETE', headers: getHeaders() })
+    if (!res.ok) throw new Error('Erro ao excluir orçamento')
 }
 
 export async function importTransactions(transactions: Transaction[]): Promise<{ imported: number; skipped: number }> {

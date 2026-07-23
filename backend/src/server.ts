@@ -9,6 +9,7 @@ import goalsRoutes from "./routes/goalsRoutes"
 import investmentsRoutes from "./routes/investmentsRoutes"
 import ocrRoutes from "./routes/ocrRoutes"
 import creditCardsRoutes from "./routes/creditCardsRoutes"
+import budgetsRoutes from "./routes/budgetsRoutes"
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -26,6 +27,7 @@ app.use("/api/goals", goalsRoutes)
 app.use("/api/investments", investmentsRoutes)
 app.use("/api/ocr", ocrRoutes)
 app.use("/api/credit-cards", creditCardsRoutes)
+app.use("/api/budgets", budgetsRoutes)
 
 app.get("/api/health", (_req, res) => {
     res.json({ status: "ok", timestamp: new Date().toISOString() })

@@ -28,6 +28,7 @@ import { GoalsSection } from './GoalsSection'
 import { InvestmentsSection } from './InvestmentsSection'
 import { OcrSection } from './OcrSection'
 import { CreditCardsSection } from './CreditCardsSection'
+import { BudgetsSection } from './BudgetsSection'
 
 const COLORS = ['#00d4aa', '#60a5fa', '#fbbf24', '#ff4d6d', '#a78bfa', '#34d399', '#fb923c', '#f472b6']
 
@@ -555,6 +556,9 @@ export function Dashboard() {
 
                 {/* ── Investimentos ── */}
                 <InvestmentsSection />
+
+                {/* ── Orçamentos ── */}
+                <BudgetsSection />
 
                 {/* ── Cartões de Crédito ── */}
                 <CreditCardsSection />
